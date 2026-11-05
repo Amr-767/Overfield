@@ -2,7 +2,10 @@
 
 **Last updated:** 2026-11-04  
 **Current phase:** Phase 0 — Project Analysis and Implementation Planning  
-**Phase status:** ✅ Complete
+**Phase status:** ⏳ Awaiting review — **NOT APPROVED**
+
+> Phase 0 deliverables are complete, but the review has **not** been signed off. Do not
+> start Phase 1 and do not tag `phase-0-approved` until approval is recorded here.
 
 ---
 
@@ -10,14 +13,19 @@
 
 | Item | Status |
 |---|---|
-| Repository | Empty — no application code, no Git initialization |
+| Repository | Git initialised; no application code yet |
+| Default branch | `main` (stable) |
+| Integration branch | `develop` |
+| Current work branch | `phase/0-documentation-review` |
 | Backend (`backend/`) | Empty directory |
 | Frontend (`frontend/`) | Empty directory |
-| Documentation (`docs/`) | Master Handoff + Phased Coding Playbook present |
+| Documentation (`docs/`) | Master Handoff + Phased Coding Playbook + Phase 0 docs present |
+| `docs/GIT_WORKFLOW.md` | Present |
 | README.md | Empty file |
-| `.gitignore` | Not present |
-| `.env.example` | Not present |
-| Git | Not initialized |
+| `.gitignore` | Present (Python/Django, Node/React, env, IDE, logs, caches, NASA/geospatial data) |
+| `.env.example` | Not present (planned for Phase 1) |
+| Git | Initialised — baseline commit on `main` |
+| GitHub remote | Not configured — GitHub CLI (`gh`) not installed on this machine |
 | Dependencies | None installed |
 | Tests | None exist |
 | Database | Not configured |
@@ -56,12 +64,27 @@
 | NASA Earthdata Login credentials for SMAP/ECOSTRESS | **NEEDS SETUP** | Backend lead |
 | MapLibre vs. Leaflet for frontend maps | **NEEDS TEAM DECISION** | Frontend lead |
 
+## Git Workflow Status
+
+- Git repository initialised with `main`, `develop`, and `phase/0-documentation-review`.
+- Baseline commit created on `main`; `develop` and the Phase 0 review branch created from it.
+- Full workflow documented in [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md).
+- **No GitHub remote is configured yet** — GitHub CLI is not installed/authenticated.
+  See the setup instructions in `docs/GIT_WORKFLOW.md` and the project handoff notes.
+- No secrets committed. `.env` and credential files are ignored; `.env.example` is preserved.
+- `phase-0-approved` tag intentionally **not** created.
+
 ## Next Task
 
-**Phase 1: Project Foundation and Local Development Environment**
+**Phase 0 review sign-off** (then Phase 1 planning).
+
+Review the Phase 0 deliverables, record the outstanding team decisions, and upon approval
+update this file (mark Phase 0 ✅ Approved) and tag `phase-0-approved`.
+
+**Phase 1: Project Foundation and Local Development Environment** (do not start yet)
 
 Exact scope:
-1. Initialize Git with `.gitignore` and `develop` branch
+1. Initialize Git with `.gitignore` and `develop` branch ✅ *(done)*
 2. Set up Django project with DRF, settings split, and `apps/` structure
 3. Set up React (Vite) frontend with basic structure
 4. Configure PostgreSQL/PostGIS connection
