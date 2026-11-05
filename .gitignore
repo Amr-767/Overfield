@@ -1,0 +1,198 @@
+# ==========================================================================
+# AgroSpace Quest — .gitignore
+# Covers: Python/Django, virtualenvs, React/Node, env files, IDEs, logs,
+#        test/cache artifacts, and large local satellite/geospatial data.
+# NOTE: Package lockfiles and source/docs are intentionally NOT ignored.
+# ==========================================================================
+
+# --------------------------------------------------------------------------
+# Environment & secrets
+# --------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+*.secret
+*.secrets
+credentials.json
+*credentials*.json
+secrets.yaml
+secrets.yml
+service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+.netrc
+
+# --------------------------------------------------------------------------
+# Python / Django
+# --------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+local_settings.py
+*/settings/local.py
+staticfiles/
+media/
+/static/
+
+# --------------------------------------------------------------------------
+# Virtual environments
+# --------------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.envdir/
+virtualenv/
+.python-version
+
+# --------------------------------------------------------------------------
+# Testing & coverage
+# --------------------------------------------------------------------------
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.cache
+nosetests.xml
+test-results/
+junit*.xml
+
+# --------------------------------------------------------------------------
+# Node / React / Vite
+# --------------------------------------------------------------------------
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+.pnp.*
+.eslintcache
+.vite/
+dist-ssr/
+*.local
+
+# --------------------------------------------------------------------------
+# Logs & runtime files
+# --------------------------------------------------------------------------
+logs/
+*.pid
+*.seed
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+celerybeat-schedule*
+celerybeat.pid
+*.tmp
+*.temp
+
+# --------------------------------------------------------------------------
+# IDE / editors / OS
+# --------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+*.bak
+*.orig
+*.rej
+.history/
+
+# --------------------------------------------------------------------------
+# Large satellite / geospatial data & generated artifacts
+# Do NOT commit raw NASA datasets or heavy generated outputs.
+# --------------------------------------------------------------------------
+data/
+raw_data/
+downloads_data/
+datasets/
+*.hdf
+*.hdf5
+*.h5
+*.he5
+*.nc
+*.nc4
+*.tif
+*.tiff
+*.geotiff
+*.gtiff
+*.jp2
+*.img
+*.vrt
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.qml
+*.gpkg
+*.mbtiles
+*.pmtiles
+*.osm.pbf
+*.rrd
+*.sqlite
+*.sqlite3
+*.mdb
+*.las
+*.laz
+*.grd
+*.grib
+*.grib2
+*.zarr/
+raster_cache/
+tile_cache/
+geoserver_data/
+smap_data/
+ecostress_data/
+modis_data/
+landsat_data/
+
+# --------------------------------------------------------------------------
+# Build / packaging artifacts
+# --------------------------------------------------------------------------
+*.tgz
+*.tar.gz
+*.zip
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
