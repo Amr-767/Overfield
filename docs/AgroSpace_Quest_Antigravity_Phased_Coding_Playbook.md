@@ -30,7 +30,7 @@ The first complete prototype should allow a farmer to:
 8. Explore a clearly labeled scenario simulation.
 9. Save a chosen strategy and record a seasonal check-in.
 
-Leaderboard, rewards, partner integrations, and advanced automated verification are secondary. They must not delay the working agricultural decision-support journey.
+Points, badges, leaderboard, rewards, partner integrations, and advanced automated verification are secondary. They must not delay the working agricultural decision-support journey; leaderboard/reward surfaces are P1 after core P0 flows.
 
 ---
 
@@ -350,7 +350,7 @@ Before coding:
 
 MVP target:
 - Implement NASA POWER as the first climate-data provider if confirmed suitable by the research.
-- Implement one additional useful dataset only if it can be integrated reliably within scope (GPM precipitation or another well-justified product are candidates).
+- Treat GPM precipitation or another secondary product as optional P1/stretch work after NASA POWER works; add it only if retrieval, aggregation, and quality handling fit the remaining time.
 - Treat SMAP or ECOSTRESS as optional context unless exact product access and spatial/temporal limitations are understood.
 
 Architecture requirements:
@@ -414,7 +414,7 @@ Scientific constraints:
 - Do not assign a fine farm-level resolution to a coarse satellite product.
 - Do not upsample coarse data and imply that it gained real spatial detail.
 - Do not describe NASA POWER historical/near-real-time values as future forecasts.
-- Clearly explain satellite observations versus ground measurements.
+- Distinguish product-specific remote-sensing retrievals, reanalysis/assimilation estimates, modelled estimates, ground measurements, user-provided inputs, derived values, and scenarios. NASA POWER meteorology must not be labeled as direct satellite observation.
 
 Tests:
 - Unit and conversion tests.

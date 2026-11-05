@@ -230,7 +230,7 @@ The central design decision is to separate the **core agricultural engine** from
 
 ## 3. Backend Application Structure
 
-Do not put every model, serializer, and view in one Django app. Organize the backend by domain. A practical structure is:
+Do not put every model, serializer, and view in one Django app. Organize the backend by domain. The tree below is the target domain-boundary map, not a Phase 1 instruction to scaffold every app; add apps incrementally when a vertical slice needs them. A practical structure is:
 
 ```text
 backend/
@@ -241,9 +241,9 @@ backend/
 │   └── asgi.py
 ├── apps/
 │   ├── accounts/          # users, profiles, roles, authentication
-│   ├── geography/         # countries, regions, farm boundaries, zones
-│   ├── farms/             # farm profile, history, farming context
-│   ├── agronomy/          # crops, varieties, calendars, rotation rules
+│   ├── geography/         # future country/region entities (deferred in MVP)
+│   ├── farms/             # farm profile, boundaries/zones, history, farming context
+│   ├── agronomy/          # crops, varieties, MVP RegionAgronomyProfile, calendars, rotation rules
 │   ├── earth_data/        # NASA/provider adapters, observations, data jobs
 │   ├── indicators/        # four gauges and environmental snapshots
 │   ├── recommendations/   # candidate rotations and ranking
@@ -393,8 +393,8 @@ class Farm(models.Model):
     )
     name = models.CharField(max_length=120)
     country_code = models.CharField(max_length=2)
-    region_name = models.CharField(max_length=120, blank=True)
-    boundary = gis_models.MultiPolygonField(srid=4326, geography=True)
+    region_code = models.CharField(max_length=80)  # configured by agronomy.RegionAgronomyProfile in MVP
+    boundary = gis_models.MultiPolygonField(srid=4326)  # geometry; cast to geography for geodesic area/distance
     area_hectares = models.DecimalField(max_digits=14, decimal_places=4)
     timezone = models.CharField(max_length=64, default="UTC")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -403,11 +403,13 @@ class Farm(models.Model):
 class FarmZone(models.Model):
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="zones")
     name = models.CharField(max_length=80)
-    boundary = gis_models.MultiPolygonField(srid=4326, geography=True)
+    boundary = gis_models.MultiPolygonField(srid=4326)  # geometry; cast to geography for geodesic area/distance
     area_hectares = models.DecimalField(max_digits=14, decimal_places=4)
 ```
 
 This is a design sketch, not a complete production model. Add database constraints, geometry validation, ownership permissions, and migration tests before deployment.
+
+The geometry column is the canonical storage type for overlays, intersections, clipping, and future raster/vector work. For geodesic area or distance, cast the SRID 4326 geometry to PostGIS geography or use a justified local/equal-area projection; do not use raw longitude/latitude degrees for metric calculations. Geography has a smaller operation set and is not the default storage type.
 
 ### 4.3 How farm geometry is used downstream
 
@@ -598,7 +600,7 @@ The challenge names several datasets beyond POWER, SMAP, and ECOSTRESS. They sho
 
 A technically credible prototype does not need every dataset. A practical order is:
 
-1. **Climate and rainfall:** POWER temperature and meteorological context plus GPM IMERG rainfall. This gives the engine an explicit rainfall and temperature history.
+1. **Climate and rainfall:** Start with verified POWER parameters for meteorological context. GPM IMERG rainfall is an optional P1/Phase 3 second source after POWER is working; use it only if access, aggregation, and quality handling fit the remaining time.
 2. **Soil moisture context:** a selected SMAP product, clearly labelled as a coarse grid-cell estimate. Do not use it as a precise small-field reading.
 3. **Vegetation history:** MODIS for an accessible long time series, or Landsat for finer spatial detail where cloud-free coverage exists. Choose one for the first end-to-end vegetation feature.
 4. **Thermal / ET context:** ECOSTRESS LST, ET, or ESI product when valid coverage exists. Missing observations are normal and must not block the app.
@@ -624,7 +626,7 @@ Stores source metadata:
 - `product_code` and product/version.
 - `documentation_url`.
 - `license_or_usage_notes`.
-- `spatial_resolution_m` or resolution description.
+- native spatial support/resolution description and units, recorded per product/parameter (angular grid dimensions must not be forced into meters); retain native support and do not apply a generic POWER resolution.
 - `temporal_resolution`.
 - `active` flag.
 
@@ -651,7 +653,9 @@ Stores normalized values:
 - observation start/end time;
 - ingestion timestamp;
 - geometry or source grid-cell identifier;
-- spatial resolution;
+- native spatial support/resolution recorded for the specific source product and parameter;
+- product-level `data_category`: `REMOTE_SENSING_RETRIEVAL`, `REANALYSIS_OR_ASSIMILATION_ESTIMATE`, `MODELLED_ESTIMATE`, `GROUND_MEASURED`, `USER_PROVIDED`, `DERIVED`, or `SCENARIO`;
+- temporal convention (for example POWER's explicitly requested UTC);
 - quality flag and quality description;
 - raw source identifier/URL and JSON metadata;
 - uncertainty/confidence information, if supplied or defensibly calculated.
@@ -1146,11 +1150,15 @@ The scenario slider should allow controlled assumptions such as rainfall `-10%`,
 
 ## 10. Validation, Commit, and Expert Review
 
-### 10.1 Do not describe 80% as a scientific certification
+### 10.1 Optional P1 plan-completeness gate — not part of P0
+
+The 80% locked/provisional mechanism is optional P1 work, not a required prototype/P0 deliverable. Keep it deferred unless the team confirms a judging need and defines its required inputs, denominator/weighting, lock behavior, `NEEDS_EXPERT_REVIEW` state, and explicit reviewer action that unlocks the plan. If used, it measures plan/input completeness only.
+
+#### Design constraints if the team later adopts the gate
 
 The proposed 80% lock can work as a game mechanic, but it must be defined honestly. For example:
 
-- `plan_completeness = 80%` means that the app has enough information to create a preliminary plan.
+- `plan_completeness = 80%` means that enough required plan inputs are present under the documented product rule to create a preliminary plan.
 - `verification_status = NEEDS_EXPERT_REVIEW` means unresolved soil, seed availability, or local-practice questions remain.
 - `verified` should only be awarded after the relevant review workflow is complete.
 
@@ -1390,7 +1398,7 @@ Return HTTP `202 Accepted` for a successfully queued scan. The scan endpoint sho
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/regions/{region_id}/crop-options/` | Region-appropriate crop list |
+| GET | `/regions/{region_code}/crop-options/` | Region-appropriate crop list; stable code backed by `agronomy.RegionAgronomyProfile` in MVP |
 | GET | `/farms/{farm_id}/context/` | Retrieve current routine and preferences |
 | PUT/PATCH | `/farms/{farm_id}/context/` | Save routine, irrigation, soil inputs, priorities |
 | POST | `/farms/{farm_id}/soil-tests/` | Add soil-lab or farmer-entered results |
@@ -1402,7 +1410,7 @@ Store where a piece of information came from: farmer-entered, lab-tested, remote
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/regions/{region_id}/crop-calendar/` | Return planting/harvest windows and locally configured seasons |
+| GET | `/regions/{region_code}/crop-calendar/` | Return planting/harvest windows and locally configured seasons; MVP code is backed by `agronomy.RegionAgronomyProfile` |
 | GET | `/crops/` | Search the crop catalog and filter by region, season, water, heat, or crop family |
 | GET | `/crops/{crop_id}/profiles/` | Return water, thermal, duration, nutrient, rooting, forage, and rotation characteristics with sources |
 | GET/POST | `/farms/{farm_id}/crop-history/` | Read or record current/recent crop sequence |
@@ -1749,7 +1757,7 @@ POST /action-items/{item_id}/check-ins/
 
 The system creates an action plan. A farmer check-in is recorded as self-reported or pending evidence/review, not automatically as satellite-confirmed.
 
-#### Step 8 — Show points, badges, leaderboard, and rewards
+#### Step 8 — Optional P1 engagement: points, badges, leaderboard, and rewards
 
 ```text
 GET /me/points/
@@ -1758,7 +1766,7 @@ GET /leaderboards/regions/EG-GH/
 GET /rewards/offers/
 ```
 
-The score ledger powers the points total; opt-in privacy rules control the leaderboard; region and eligibility rules filter reward offers.
+After the core P0 journey works, the score ledger may power points; opt-in privacy rules control the leaderboard; region and eligibility rules filter reward offers. This engagement step is optional P1 and must not block the crop-rotation decision-support journey.
 
 ---
 
@@ -1773,7 +1781,7 @@ A universal platform is a good architecture goal, but a hackathon prototype shou
 | Welcome experience | React welcome screen, vector satellite/field illustration, optional audio toggle |
 | Farm mapping | Draw polygon, select location, server-side geometry validation and area calculation |
 | Zones | Manual zone creation; optional demo split with farmer confirmation |
-| Environmental scan | Real NASA POWER plus GPM IMERG rainfall for climate/rainfall context; integrate one vegetation time-series product (MODIS or Landsat) if feasible; use SMAP/ECOSTRESS where the chosen product has valid coverage and display its resolution/quality |
+| Environmental scan | P0: first working NASA POWER source with parameter-specific provenance; GPM IMERG is optional P1/Phase 3 stretch after POWER; one vegetation product is optional only if feasible; use SMAP/ECOSTRESS only when selected product coverage supports it and display its resolution/quality |
 | Data handling | Normalized observation records, source timestamps, freshness/coverage states |
 | Farmer context | Current crop routine and history, soil information (at minimum an explicit unknown/known status), irrigation/water availability, priority, and key constraints such as seed/equipment/labour/market access |
 | Four gauges | Transparent versioned calculations with explanations and confidence labels; separate measured, modelled, farmer-entered, and market-derived components |
@@ -1782,11 +1790,11 @@ A universal platform is a good architecture goal, but a hackathon prototype shou
 | Commit flow | Save a versioned strategy and generate a basic action plan |
 | Challenge evidence | For every option show evidence, likely benefits, trade-offs, information gaps, assumptions, and risks for local review |
 | Field analysis | Demonstrate at least one map/time-series layer such as rainfall anomaly, vegetation trend, or potential bare-field window; label inference and native resolution |
-| Verification gate | Show missing information and `NEEDS_EXPERT_REVIEW`; an 80% completeness mechanic may be used if its meaning is clearly explained |
+| Verification gate | P1 optional: show missing information and `NEEDS_EXPERT_REVIEW`; adopt an 80% plan-completeness mechanic only after fields, denominator, lock behavior, and reviewer unlock action are defined |
 | Seasonal check-ins | Record farmer actions as self-reported/pending review |
-| Leaderboard | Seeded demonstration users and clearly labelled demo scores |
-| Reward panel | Static mock reward cards, clearly labelled as examples—not active partner vouchers |
-| Report export | Download/share a summary for a local agricultural advisor |
+| Leaderboard | P1 optional: seeded demonstration users and clearly labelled demo scores after the core P0 journey works |
+| Reward panel | P1 optional: static mock reward cards, clearly labelled as examples—not active partner vouchers |
+| Report export | P1 optional: download/share a summary for a local agricultural advisor after the core P0 journey works; browser print may be a lightweight convenience |
 
 ### 19.2 Future work / commercialization roadmap
 
@@ -1812,7 +1820,7 @@ With a three-person team, divide work around deliverable vertical slices and agr
 
 | Workstream | Main responsibility | Deliverable |
 |---|---|---|
-| Backend/data | Django apps, PostGIS farm models, DRF endpoints, one or two real NASA data adapters (prefer POWER + GPM or one vegetation product), normalized observation storage | Working API and traceable farm environmental summary |
+| Backend/data | Django apps, PostGIS farm models, DRF endpoints, one real NASA POWER adapter first; an additional adapter is optional P1 after POWER, normalized observation storage | Working API and traceable farm environmental summary |
 | Frontend/GIS | React onboarding, map drawing, dashboard, strategy cards, time slider, check-ins | End-to-end farmer journey |
 | Agronomy/simulation/UX | Crop catalog, local rules, scoring configuration, scenario logic, narrative explanations, visual system | Credible and understandable recommendation experience |
 
@@ -1830,7 +1838,7 @@ The minimum convincing demo is:
 6. The backend generates three explainable strategy types from a small reviewed crop catalog.
 7. The time portal displays scenario-based changes over four nodes.
 8. The farmer commits a plan and records one check-in.
-9. The app shows a transparent status, points event, example leaderboard, and clearly labelled reward mockups.
+9. P1 optional: the app shows a transparent points event, example leaderboard, and clearly labelled reward mockups after the core journey works.
 
 This gives judges a complete story from farm boundary to decision to follow-up, without pretending that the prototype has operational nationwide verification or a production partner network.
 
@@ -2935,8 +2943,9 @@ API docs: [NASA POWER Daily API](https://power.larc.nasa.gov/docs/services/api/t
 Technical notes:
 
 - POWER offers analysis-ready time series through REST-style services and supports JSON/CSV and other formats.
-- The daily API includes time-standard settings (UTC or local solar time). Record the selected time standard.
-- Spatial resolution varies by source parameter. The POWER docs note a 0.5° × 0.5° global grid for some catalog use cases; do not assume every parameter has identical native support.
+- The Daily API defaults to Local Solar Time. When UTC is the project convention, every request must explicitly include `time-standard=UTC`; record the requested convention.
+- Spatial support varies by source parameter. Meteorological MERRA-2 fields are described at 0.5° latitude × 0.625° longitude; do not assume every POWER parameter has identical native support or substitute a generic grid label.
+- POWER distributes multiple source products: classify each parameter from its source. Meteorological parameters sourced from MERRA-2/GEOS-IT are reanalysis/assimilation estimates, not direct satellite observations; solar parameters need their own documented source classification.
 - POWER is useful for location-level or regional climate context; it is not an on-farm rain gauge.
 - Store exact parameter codes and units from the Manager/API documentation. Never invent variable identifiers.
 
@@ -3227,7 +3236,7 @@ Suggested fields:
 | `crop_id` | Stable identifier |
 | `common_name`, `scientific_name` | Crop identity |
 | `crop_family` | Useful for disease/host rotation logic |
-| `region_ids` | Where the trait record is applicable |
+| `region_codes` | Where the trait record is applicable; MVP codes come from `agronomy.RegionAgronomyProfile` |
 | `planting_window` | Region- and season-specific range, with source |
 | `growth_duration_days` | Range, not a single false-precision value |
 | `water_need_class` | Qualitative/range with source and context |
@@ -3661,7 +3670,7 @@ Show three or more strategies, with the current rotation included. The compariso
 #### Screen 6 — Discuss and export
 
 - Show questions the farmer may take to an agronomist.
-- Export a report with sources, assumptions, and date.
+- Report export is P1 optional after the core journey works; a browser print view may be used as a lightweight convenience. If implemented, include sources, assumptions, and date.
 - Do not use urgent, absolute, or coercive language.
 
 ### 26. Language and visual design
