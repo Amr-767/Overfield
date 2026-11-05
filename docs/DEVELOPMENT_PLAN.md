@@ -1,6 +1,6 @@
 # AgroSpace Quest — Development Plan
 
-**Last updated:** 2026-11-04  
+**Last updated:** 2026-11-05
 **Team size:** 3 persons  
 **Stack:** Django + DRF + PostgreSQL/PostGIS + React (Vite) + Celery/Redis  
 **Challenge:** NASA Space Apps 2026 — Field Shift: Adapting Farms with NASA Data
@@ -18,7 +18,9 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 5. See why each was suggested, evidence, trade-offs, risks, data gaps
 6. Explore a labeled scenario simulation (4 time nodes)
 7. Commit a strategy and record a seasonal check-in
-8. View points, badges, and a demo leaderboard
+8. Optionally view points, badges, and a demo leaderboard after the core journey works
+
+Dedicated PDF/CSV report export and the optional 80% plan-completeness review gate are P1, not required for the P0 journey. The 80% value, if adopted later, is a product/input-completeness rule only and never scientific confidence or NASA certification.
 
 ---
 
@@ -32,13 +34,16 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 - Design architecture and create planning documents
 - Identify MVP vs. advanced vs. future features
 - Identify risks and unknowns
+- Maintain substantive risks in [`RISK_REGISTER.md`](RISK_REGISTER.md)
 
 **Acceptance criteria:**
 - Planning documents created
 - Architecture decisions documented
-- Risk register created
+- Risk register exists with probability, impact, mitigation, owner, fallback, and resolution phase
 - Development order defined
 - Team role recommendations provided
+- Repository audit matches the actual checkout
+- P0 API, provenance, region/calendar, geometry, and scope decisions agree across documents
 
 ---
 
@@ -48,7 +53,7 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 **Tasks:**
 1. Initialize Git with `.gitignore`, `develop` branch
 2. Django project: `config/` with split settings (base/dev/prod)
-3. Create the `apps/` directory structure (empty apps, no models yet)
+3. Create only the project/configuration structure needed for the first vertical slice; defer unused domain apps until their phase
 4. React frontend: Vite + React + basic project structure
 5. PostgreSQL + PostGIS configuration
 6. `.env.example` with all placeholder variables
@@ -63,6 +68,7 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 **Acceptance criteria:**
 - Backend starts with documented commands
 - Frontend starts with documented commands
+- Local setup is reproducible on supported team machines, including Windows; prefer Docker Compose for PostGIS and Redis with Django/Vite local, or document exact alternatives and versions
 - Health endpoint responds successfully
 - Frontend can call health endpoint
 - Database connection works
@@ -79,9 +85,9 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 
 **Tasks:**
 1. User authentication (JWT via `djangorestframework-simplejwt`)
-2. `Farm` and `FarmZone` models with GeoDjango `MultiPolygonField` (SRID 4326)
+2. `Farm` and `FarmZone` models with GeoDjango `MultiPolygonField` geometry (SRID 4326); cast to geography for geodesic area/distance, and use geometry for overlay/spatial operations
 3. GeoJSON validation through DRF serializers
-4. Geodesic area calculation (PostGIS geography)
+4. Geodesic area calculation from geometry via geography cast (or a justified equal-area projection)
 5. Spatial indexes and ownership permissions
 6. Farmer context models: soil info, water availability, current rotation, priorities, constraints
 7. Frontend: farm creation flow with map (polygon draw or point fallback)
@@ -104,7 +110,7 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 **Tasks:**
 1. Research and verify NASA POWER API (current endpoint, parameters, units, format)
 2. Implement NASA POWER adapter with provider interface
-3. Implement one additional source (GPM IMERG candidate) if feasible
+3. Consider GPM IMERG only as optional P1/Phase 3 stretch work after POWER is working
 4. `DatasetSource` and `DataFetchJob` models
 5. `EnvironmentalObservation` normalized storage model
 6. Celery tasks: fetch → normalize → store, with states (PENDING/RUNNING/SUCCEEDED/PARTIAL/FAILED)
@@ -135,14 +141,14 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 2. Farm-level temporal aggregation (seasonal summaries)
 3. Derived indicators: temperature summaries, precipitation totals, dry-spell indicators
 4. Data quality/freshness status: available, stale, partial, missing, low_quality
-5. Distinction between observed, derived, user-provided, and scenario outputs
+5. Source-aware distinction among remote-sensing retrieval, reanalysis/assimilation estimate, modelled estimate, ground-measured, user-provided, derived, and scenario outputs
 6. Missing-data handling (never replace with zero or invent)
 7. `FarmEnvironmentalSnapshot` response model
 8. Summary API: `GET /farms/{id}/environment/current/`
 9. Unit conversion and validation
 
 **Acceptance criteria:**
-- Every displayed value has unit, source, period, quality/freshness label
+- Every displayed value has unit, source/product/parameter, period, parameter-specific spatial support, temporal convention, and quality/freshness label
 - Missing data is visibly missing, not fabricated
 - Aggregation tests pass with known fixtures
 - API response contract tests pass
@@ -156,7 +162,7 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 
 **Tasks:**
 1. `Crop`, `CropSeasonRule`, `CropSuitabilityRule`, `CropWaterProfile`, `CropRotationRule` models
-2. Regional crop catalog with sourced properties (demo region)
+2. Person C (Agronomy/Simulation/UX) sources the regional crop catalog; minimum crop set, seasons, and traits are determined after the team selects region/persona/system. Acceptable sources are regional extension/agriculture authorities, FAO references where applicable, or peer-reviewed literature. Do not use an LLM as a source for calendars or coefficients. Label unreviewed demo entries as needing expert validation.
 3. Recommendation pipeline: validate → hard constraints → soft preferences → generate sequences → evaluate → rank → explain
 4. Three strategy types: BASELINE, WATER_EFFICIENT, SOIL_REGENERATION
 5. Deterministic, explainable scoring with configurable weights
@@ -180,7 +186,7 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 **Tasks:**
 1. `SimulationRun` and `SimulationStep` models
 2. Scenario modes: BASELINE, DRY_SCENARIO, HOT_SCENARIO, WATER_EFFICIENT, SOIL_REGENERATION
-3. Timeline nodes: Present, +6 months, +1 year, +2 years
+3. Display checkpoints: Present, +6 months, +1 year, +2 years, mapped to actual selected-region seasons; preserve actual season/calendar dates on every step (the checkpoint is not assumed to be a growing season)
 4. Explicit simulation inputs and assumptions
 5. User-adjustable temperature/rainfall scenarios within documented bounds
 6. Deterministic reproducibility (same inputs → same outputs)
@@ -223,6 +229,8 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 ### Phase 8 — Strategy Commitment, Check-ins, Gamification, and Rewards
 **Model:** Flash for CRUD, Opus for verification logic | **Code changes:** Engagement models, APIs, frontend
 
+P0 scope in this phase is strategy commitment and a self-reported seasonal check-in. Points history, badges, leaderboard, and reward panel are P1 optional engagement features; do not delay the core journey for them.
+
 **Tasks:**
 1. `CommittedStrategy` with versioned copy of plan and assumptions
 2. `ActionPlan` and `ActionPlanItem` models
@@ -234,11 +242,13 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 
 **Acceptance criteria:**
 - Check-in labeled as self-reported, not satellite-confirmed
-- Score history is auditable
+- If the optional points feature is implemented, score history is auditable
 - Missing satellite data cannot automatically reduce score
 - Ownership/security tests pass
 
 **Dependencies:** Phase 7 complete
+
+The optional 80% review gate is deferred to P1. If brought into scope, first define required inputs, denominator/weights, missing-field lock behavior, `NEEDS_EXPERT_REVIEW` state, and the reviewer action that unlocks the plan. It scores plan completeness only, not evidence quality, scientific confidence, or NASA certification.
 
 ---
 
@@ -283,7 +293,7 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 | Four elemental gauges (composite indicators) | 6–7 |
 | Complete React farmer journey | 7 |
 | Strategy commitment and basic check-in | 8 |
-| Demo leaderboard and reward panel | 8 |
+| Plan/input completeness gate | P1 (deferred; only if team confirms need) |
 
 ### P1 — Add only after P0 works
 
@@ -294,8 +304,27 @@ The minimum viable product is a **complete end-to-end farmer journey**:
 | SMAP/ECOSTRESS context | Needs Earthdata auth |
 | Seasonal scenario sliders | Climate perturbation UI |
 | PDF/CSV report export | For agricultural advisor |
+| Points/badges, demo leaderboard, and reward panel | Optional engagement layer after core P0 journey |
+| Optional 80% plan-completeness gate and expert-review workflow | Requires agreed fields, denominator, lock behavior, `NEEDS_EXPERT_REVIEW`, and reviewer unlock action; not scientific confidence |
 | AI explanation assistant (grounded) | RAG + read-only tools |
 | Arabic/English localization | If demo region is Egypt |
+
+**Priority note:** POWER is the first planned integration. GPM is an optional P1 stretch item after POWER; it is not a P0 dependency. Other secondary sources remain optional unless the team documents a compelling challenge need and a feasible verified workflow.
+
+### Phase 0 Open Decisions (owners)
+
+| Decision | Owner | Status |
+|---|---|---|
+| Demo region and stable `region_code` | Team | Open; Gharbia/Nile Delta is only a candidate |
+| Farmer persona, farm scale, crop system, and calendar season set | Team + Person C | Open |
+| Crop catalog minimum entries and source review | Person C, with local agronomy reviewer sought by team | Open; do not invent crop facts |
+| Authentication identity | Team + Person A | Phase 0 contract selects username; reopen only if the team changes it before Phase 2 |
+| Map library | Person B | Open |
+| Docker Compose vs exact local versions/setup | Team + Person A/B | Open for Phase 1 setup; reproducibility required |
+| NASA POWER parameter/source mapping and selected variables | Person A + Person C | Verify official product metadata before implementation |
+| LLM provider, if P1 assistant is retained | Backend lead | Deferred |
+| Deployment target | Team | Open |
+| Dedicated report export and 80% plan gate | Team | P1 deferred; decide only if demo need justifies |
 
 ### P2 — Future work (not hackathon)
 

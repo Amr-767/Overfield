@@ -1,17 +1,20 @@
 # AgroSpace Quest — API Contracts
 
-**Last updated:** 2026-11-04  
+**Last updated:** 2026-11-05
 **Status:** Phase 0 — Design only. No endpoints implemented yet.  
 **Base URL:** `/api/v1/`  
 **Authentication:** JWT (Bearer token) via `djangorestframework-simplejwt`  
 **Format:** JSON  
 **Geometry:** GeoJSON ([longitude, latitude] convention)
+**Identity contract:** `username` is the registration/login identifier; `email` is a contact field and is not accepted as the token-login identifier. This is the Phase 0 API choice; the team may revise it before Phase 2 only by updating the contract consistently.
+
+**Scope labels:** Routes marked P0 form the planned end-to-end MVP contract; P1/P2 routes are optional/future. Examples are schema fixtures only and contain no verified farm, NASA, agronomic, or performance result unless explicitly identified as farmer-provided. No endpoint is implemented in Phase 0.
 
 ---
 
 ## 1. Authentication
 
-### POST `/api/v1/auth/register/`
+### POST `/api/v1/auth/register/` — P0
 Create a new user account.
 
 **Request:**
@@ -34,7 +37,7 @@ Create a new user account.
 }
 ```
 
-### POST `/api/v1/auth/token/`
+### POST `/api/v1/auth/token/` — P0
 Obtain JWT access + refresh tokens.
 
 **Request:**
@@ -53,7 +56,7 @@ Obtain JWT access + refresh tokens.
 }
 ```
 
-### POST `/api/v1/auth/token/refresh/`
+### POST `/api/v1/auth/token/refresh/` — P0
 Refresh access token.
 
 **Request:**
@@ -70,7 +73,7 @@ Refresh access token.
 }
 ```
 
-### GET `/api/v1/me/`
+### GET `/api/v1/me/` — P0
 Get current user profile.
 
 **Response:** `200 OK`
@@ -87,7 +90,7 @@ Get current user profile.
 
 ## 2. Farms and Zones
 
-### POST `/api/v1/farms/`
+### POST `/api/v1/farms/` — P0
 Create a farm with GeoJSON boundary.
 
 **Request:**
@@ -95,7 +98,7 @@ Create a farm with GeoJSON boundary.
 {
   "name": "North Field",
   "country_code": "EG",
-  "region_name": "Gharbia",
+  "region_code": "<team-selected-stable-code>",
   "geometry": {
     "type": "Polygon",
     "coordinates": [[[30.9501, 30.7901], [30.9522, 30.7901], [30.9522, 30.7918], [30.9501, 30.7918], [30.9501, 30.7901]]]
@@ -112,7 +115,7 @@ Create a farm with GeoJSON boundary.
   "id": 42,
   "name": "North Field",
   "country_code": "EG",
-  "region_name": "Gharbia",
+  "region_code": "<team-selected-stable-code>",
   "boundary": { "type": "MultiPolygon", "coordinates": [[[[30.9501, 30.7901], ...]]] },
   "area_hectares": "4.2500",
   "timezone": "Africa/Cairo",
@@ -128,26 +131,29 @@ Create a farm with GeoJSON boundary.
 }
 ```
 
-### GET `/api/v1/farms/`
-List the authenticated user's farms.
+### GET `/api/v1/farms/` — P0
+List the authenticated user's farms. Returns paginated farm summaries using the same fields as the create response.
 
-### GET `/api/v1/farms/{farm_id}/`
+### GET `/api/v1/farms/{farm_id}/` — P0
 Retrieve farm details (owner only).
 
-### PATCH `/api/v1/farms/{farm_id}/`
+### PATCH `/api/v1/farms/{farm_id}/` — P0
 Update farm metadata.
 
-### DELETE `/api/v1/farms/{farm_id}/`
+### DELETE `/api/v1/farms/{farm_id}/` — P1
 Delete farm (owner only).
 
-### GET/POST `/api/v1/farms/{farm_id}/zones/`
-List or create zones within a farm.
+### GET `/api/v1/farms/{farm_id}/zones/` — P0
+List farm zones; initially may return an empty paginated list. Each item is `{id, name, geometry, area_hectares}`.
+
+### POST `/api/v1/farms/{farm_id}/zones/` — P0
+Create a zone wholly within the farm. Request `{ "name": "North", "geometry": {"type":"Polygon", "coordinates":[...]}}`; response `201` returns the item shape above. Invalid or out-of-farm geometry returns `400`.
 
 ---
 
 ## 3. Farmer Context and Onboarding
 
-### GET `/api/v1/farms/{farm_id}/context/`
+### GET `/api/v1/farms/{farm_id}/context/` — P0
 Retrieve the farmer's current crop routine, soil info, water, priorities, and constraints.
 
 **Response:** `200 OK`
@@ -163,6 +169,8 @@ Retrieve the farmer's current crop routine, soil info, water, priorities, and co
     "ph": 7.8,
     "organic_carbon_percent": null,
     "sampling_depth_cm": 30,
+    "method": null,
+    "lab_name": null,
     "sample_date": "2026-03-15"
   },
   "water_availability": {
@@ -184,14 +192,14 @@ Retrieve the farmer's current crop routine, soil info, water, priorities, and co
 }
 ```
 
-### PUT/PATCH `/api/v1/farms/{farm_id}/context/`
-Save/update farmer context. `null` means unknown, not "no constraint."
+### PUT/PATCH `/api/v1/farms/{farm_id}/context/` — P0
+Save/update farmer context using the response fields above. `current_crops` is an ordered season/crop history and baseline source; `soil_info` includes source, sampling depth/method/date and nullable measurements; `water_availability` includes irrigation access/type/reliability; `priorities` are named relative weights (must be non-negative and sum to 1 when supplied); `constraints` are explicit values or unknown. `null` means unknown, not "no constraint." Return `200` with the normalized saved context.
 
 ---
 
 ## 4. Environmental Scan and Data
 
-### POST `/api/v1/farms/{farm_id}/scans/`
+### POST `/api/v1/farms/{farm_id}/scans/` — P0
 Queue an environmental data scan.
 
 **Response:** `202 Accepted`
@@ -204,7 +212,7 @@ Queue an environmental data scan.
 }
 ```
 
-### GET `/api/v1/data-jobs/{job_id}/`
+### GET `/api/v1/data-jobs/{job_id}/` — P0
 Check background job status.
 
 **Response:** `200 OK`
@@ -222,7 +230,7 @@ Check background job status.
 
 **Possible statuses:** `PENDING`, `RUNNING`, `SUCCEEDED`, `PARTIAL`, `FAILED`
 
-### GET `/api/v1/farms/{farm_id}/environment/current/`
+### GET `/api/v1/farms/{farm_id}/environment/current/` — P0
 Latest farm environmental summary.
 
 **Response:** `200 OK`
@@ -237,10 +245,14 @@ Latest farm environmental summary.
       "unit": "°C",
       "period": {"start": "2026-06-01", "end": "2026-09-30"},
       "source": "NASA_POWER",
-      "product": "T2M daily",
-      "spatial_support": "0.5° grid cell",
+      "dataset_product": "POWER parameter source/product to be verified",
+      "parameter": "T2M",
+      "spatial_support": {"description": "parameter/product-specific native support; verify before use", "native_resolution": null},
+      "temporal_convention": "UTC (request must explicitly include time-standard=UTC)",
+      "source_record_id": null,
+      "processing": {"method": "seasonal mean of valid daily values", "version": "pending"},
       "quality_status": "AVAILABLE",
-      "data_category": "OBSERVED",
+      "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
       "freshness": "2026-11-01"
     },
     {
@@ -248,98 +260,129 @@ Latest farm environmental summary.
       "value": null,
       "unit": "mm",
       "source": "NASA_POWER",
+      "parameter": "PRECTOTCORR",
+      "dataset_product": "POWER parameter source/product to be verified",
+      "spatial_support": {"description": "parameter/product-specific native support; verify before use", "native_resolution": null},
+      "temporal_convention": "UTC (request must explicitly include time-standard=UTC)",
       "quality_status": "MISSING",
-      "data_category": "OBSERVED",
+      "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
       "limitation": "Precipitation data not yet fetched for this period"
     }
   ],
-  "data_completeness": 0.65,
+  "data_completeness": {"status": "NOT_ASSESSED", "value": null, "reason": "Required checks, denominator, and weighting policy are pending approval."},
+  "confidence": {"status": "NOT_ASSESSED", "reason": "Evidence suitability rubric is pending; confidence is claim-specific and separate from completeness."},
   "limitations": ["SMAP soil moisture not integrated in this version"]
 }
 ```
 
-### GET `/api/v1/farms/{farm_id}/environment/history/`
-Historical trend data for the farm.
+### GET `/api/v1/farms/{farm_id}/environment/history/` — P1
+Contract deferred; not part of MVP.
 
-### GET `/api/v1/farms/{farm_id}/data-sources/`
-Show available data sources and their freshness.
+### GET `/api/v1/farms/{farm_id}/data-sources/` — P1
+Contract deferred; not part of MVP.
 
 ---
 
 ## 5. Crop Catalog
 
-### GET `/api/v1/crops/`
-Search the crop catalog. Supports query params: `region`, `season`, `water_class`, `crop_family`.
+### GET `/api/v1/crops/` — P0
+Search sourced crop catalog. Query params: `region_code` (required), optional `season`, `water_class`, `crop_family`. Returns paginated `{id, code, name, scientific_name, crop_family, source_status, evidence_ids}` records; only reviewed/explicitly demo-labeled records are eligible for recommendations.
 
-### GET `/api/v1/crops/{crop_id}/profiles/`
-Return crop characteristics with sources.
+### GET `/api/v1/crops/{crop_id}/profiles/` — P0
+Return crop characteristics, applicability, validation status, and structured source references; absent traits are `null`/unknown.
 
-### GET `/api/v1/regions/{region_id}/crop-calendar/`
-Return regional planting/harvest windows.
+### GET `/api/v1/regions/{region_code}/crop-calendar/` — P0
+`region_code` is a stable slug backed by `agronomy.RegionAgronomyProfile`; no standalone `geography` model is required in the MVP. Returns `{region_code, country_code, timezone, calendar_version, seasons:[{season_code, label, start_month_day, end_month_day, crops:[{crop_code, planting_window, harvest_window, evidence_ids}]}]}`. Return `404` for an unknown/unconfigured code. Values must be sourced; no calendar is selected yet.
 
 ---
 
 ## 6. Recommendations
 
-### POST `/api/v1/farms/{farm_id}/recommendations/`
+### POST `/api/v1/farms/{farm_id}/recommendations/` — P0
 Generate crop rotation recommendations.
+
+Stable strategy enum: `BASELINE`, `WATER_EFFICIENT`, `SOIL_REGENERATION`. Return exactly one option per enum when evidence supports all; otherwise return a documented `422` with missing evidence/constraints rather than fabricate a sequence. `BASELINE` exactly reproduces farmer-entered history over the same planning horizon. The strategy labels are intents, not fixed crop sequences. Planning horizon and region calendar are explicit. All scores/benefits in the schema example are illustrative fixtures, not verified results.
+
+**Request:** `region_code` is optional but, if provided, must equal the farm's configured code; `planning_seasons` is a positive count; `priority_weights` is optional and named weights must sum to 1. The response records the selected calendar version and actual season dates.
 
 **Response:** `201 Created`
 ```json
 {
   "recommendation_id": "rec_abc123",
   "farm_id": 42,
-  "generated_at": "2026-11-04T12:05:00Z",
+  "generated_at": "<UTC timestamp>",
   "engine_version": "rotation-v1.0",
-  "data_completeness": 0.78,
+  "planning_horizon": {"season_count": 4, "calendar_version": "fixture-only"},
+  "data_completeness": {"status": "NOT_ASSESSED", "value": null, "reason": "Method not approved."},
   "options": [
     {
       "strategy_type": "BASELINE",
-      "title": "Traditional Path",
-      "score": 62,
-      "confidence": "medium",
+      "title": "Current rotation",
+      "score": null,
+      "score_status": "NOT_ASSESSED",
+      "confidence": {"status": "NOT_ASSESSED", "reason": "No approved evidence-quality rubric."},
       "seasons": [
-        {"season": "Winter 2026/27", "crop": "Wheat", "source": "farmer_reported"}
+        {"season_code": "<calendar-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<exact-farmer-entry>", "source": "USER_PROVIDED"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<exact-farmer-entry>", "source": "USER_PROVIDED"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<exact-farmer-entry>", "source": "USER_PROVIDED"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<exact-farmer-entry>", "source": "USER_PROVIDED"}
       ],
       "why_suggested": "This is your current crop rotation, used as the comparison baseline.",
-      "benefits": ["Familiar practice", "Known market"],
-      "tradeoffs": ["Continuous cereal may deplete soil nitrogen over time"],
-      "evidence": ["NASA POWER climate summary (2021–2026)", "Farmer-reported crop history"],
-      "data_gaps": ["No soil test provided for organic carbon"],
-      "risks_for_local_review": ["Long-term monoculture pest pressure not assessed"],
-      "assumptions": ["Current water access continues unchanged"]
+      "benefits": [],
+      "tradeoffs": [],
+      "evidence": [{"evidence_id": "ev_fixture", "dataset_product": "farmer-entered history", "parameter": "current_rotation", "date_range": null, "spatial_support": "farm/user record", "source_record_or_snapshot_id": "fixture-only", "processing_method_version": "identity/v1", "quality_status": "USER_PROVIDED", "relevance": "Defines the comparison baseline; not independently verified."}],
+      "data_gaps": ["<include only gaps present in this farmer's record>"],
+      "risks_for_local_review": [],
+      "assumptions": [],
+      "illustrative_fixture": true
     },
     {
       "strategy_type": "WATER_EFFICIENT",
-      "title": "Hydra Shield",
-      "score": 78,
-      "confidence": "medium",
+      "title": "Hydra Shield (display label)",
+      "score": null,
+      "score_status": "NOT_ASSESSED",
+      "confidence": {"status": "NOT_ASSESSED", "reason": "No approved evidence-quality rubric."},
       "seasons": [
-        {"season": "Winter 2026/27", "crop": "Barley"}
+        {"season_code": "<sourced-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"}
       ],
-      "why_suggested": "Lower estimated water demand may reduce irrigation pressure.",
-      "benefits": ["Estimated 15–25% lower seasonal water demand vs. baseline"],
-      "tradeoffs": ["Local barley market price is unknown"],
-      "evidence": ["Regional crop water profile (source: FAO Irrigation Manual)"],
-      "data_gaps": ["Market price data not available"],
-      "risks_for_local_review": ["Barley variety suitability needs local confirmation"],
-      "assumptions": ["Crop coefficient from FAO reference, not field-calibrated"]
+      "why_suggested": "Illustrative intent only; a factual recommendation requires sourced regional crop water traits and a defined comparison method.",
+      "benefits": [], "tradeoffs": [], "evidence": [], "data_gaps": [], "risks_for_local_review": [], "assumptions": [], "illustrative_fixture": true
+    },
+    {
+      "strategy_type": "SOIL_REGENERATION",
+      "title": "Nitrogen Battery (display label)",
+      "score": null,
+      "score_status": "NOT_ASSESSED",
+      "confidence": {"status": "NOT_ASSESSED", "reason": "No approved evidence-quality rubric."},
+      "seasons": [
+        {"season_code": "<sourced-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"},
+        {"season_code": "<next-season>", "start_date": "<calendar-date>", "end_date": "<calendar-date>", "crop_code": "<supported-candidate>", "source": "CURATED_CROP_CATALOG"}
+      ],
+      "why_suggested": "Illustrative intent only; support requires verified crop-family, legume/nitrogen, residue, and regional evidence.",
+      "benefits": [], "tradeoffs": [], "evidence": [], "data_gaps": [], "risks_for_local_review": [], "assumptions": [], "illustrative_fixture": true
     }
   ]
 }
 ```
 
-### GET `/api/v1/recommendations/{recommendation_id}/`
+Each `evidence` item is structured: `evidence_id`, `dataset_product` (including version when known), `parameter`, `date_range`, `spatial_support`, `source_record_or_snapshot_id`, `processing_method_version`, `quality_status`, and claim-specific `relevance`. Claims reference evidence IDs; free-text source names alone are insufficient. Empty evidence cannot support a factual benefit claim.
+
+### GET `/api/v1/recommendations/{recommendation_id}/` — P0
 Retrieve a recommendation with full explanations.
 
-### GET `/api/v1/farms/{farm_id}/recommendations/`
-List recommendation history for a farm.
+### GET `/api/v1/farms/{farm_id}/recommendations/` — P1
+Contract deferred; not part of MVP.
 
 ---
 
 ## 7. Simulations
 
-### POST `/api/v1/simulations/`
+### POST `/api/v1/simulations/` — P0
 Create a scenario simulation run.
 
 **Request:**
@@ -351,6 +394,7 @@ Create a scenario simulation run.
   "scenario_type": "DRY_SCENARIO",
   "horizon_months": 24,
   "time_nodes": [0, 6, 12, 24],
+  "calendar_version": "<region-calendar-version>",
   "adjustments": {
     "rainfall_change_percent": -15,
     "temperature_change_c": 1.0
@@ -370,10 +414,10 @@ Create a scenario simulation run.
 }
 ```
 
-### GET `/api/v1/simulations/{simulation_id}/`
+### GET `/api/v1/simulations/{simulation_id}/` — P0
 Get simulation summary.
 
-### GET `/api/v1/simulations/{simulation_id}/steps/`
+### GET `/api/v1/simulations/{simulation_id}/steps/` — P0
 Get time-step details.
 
 **Response:** `200 OK`
@@ -385,6 +429,9 @@ Get time-step details.
       "step_index": 0,
       "label": "Present",
       "season": "Winter 2026/27",
+      "season_start_date": "<calendar-date>",
+      "season_end_date": "<calendar-date>",
+      "calendar_version": "<region-calendar-version>",
       "crop": "Barley",
       "gauges": {
         "water_resilience": {"score": 74, "label": "Moderate-Good", "confidence": "medium"},
@@ -403,7 +450,7 @@ Get time-step details.
 
 ## 8. Strategy Commitment and Check-ins
 
-### POST `/api/v1/recommendations/{recommendation_id}/commit/`
+### POST `/api/v1/recommendations/{recommendation_id}/commit/` — P0
 Commit a selected strategy.
 
 **Request:**
@@ -427,7 +474,7 @@ Commit a selected strategy.
 }
 ```
 
-### POST `/api/v1/action-items/{item_id}/check-ins/`
+### POST `/api/v1/action-items/{item_id}/check-ins/` — P0
 Submit a farmer check-in.
 
 **Request:**
@@ -451,22 +498,25 @@ Submit a farmer check-in.
 
 ---
 
-## 9. Gamification
+## 9. Gamification — P1 (contracts deferred; not part of MVP)
 
-### GET `/api/v1/me/points/`
-Current points and score history.
+Points, badges, and leaderboards are P1; their contracts are deferred and not part of MVP.
 
-### GET `/api/v1/me/badges/`
-Earned badges.
+## 10. Report Export and Plan Review Gate
 
-### GET `/api/v1/leaderboards/regions/{region_code}/`
-Regional ranking (opted-in users only, privacy-conscious).
+### Report export — P1
+
+Dedicated PDF/CSV export is deferred; no P0 export route is defined. A browser print view may be used as a convenience after the core journey works, without expanding P0 scope.
+
+### 80% review gate — P1, deferred
+
+The master handoff's locked/provisional concept is not part of P0. If adopted later, it must be named a plan/input completeness score, never scientific confidence or NASA certification. Contract and acceptance criteria are deferred until required fields, denominator/weights, fields that lock a plan, and the reviewer action that unlocks it are agreed. The API must not imply this gate currently exists.
 
 ---
 
 ## 10. Health Check
 
-### GET `/api/v1/health/`
+### GET `/api/v1/health/` — P0
 System health check (no authentication required).
 
 **Response:** `200 OK`
@@ -511,6 +561,7 @@ All errors follow a consistent format:
 - All geometry is GeoJSON with `[longitude, latitude]` coordinate order.
 - Area is always calculated server-side; client-provided area values are ignored.
 - `null` in farmer context means "unknown" — not "zero" or "no constraint."
+- `data_completeness` and claim-specific `confidence` are separate; both remain `NOT_ASSESSED` until defensible calculation methods are approved.
 - Scan endpoints return `202 Accepted` and a job ID; the frontend polls the job status.
 - Simulation adjustments are labeled as user-selected stress tests, never as NASA predictions or forecasts.
 

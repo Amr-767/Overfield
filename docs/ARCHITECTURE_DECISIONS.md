@@ -1,6 +1,6 @@
 # AgroSpace Quest — Architecture Decision Records
 
-**Last updated:** 2026-11-04
+**Last updated:** 2026-11-05
 
 ---
 
@@ -41,14 +41,15 @@
 ## ADR-003: PostgreSQL + PostGIS for Database
 
 **Status:** Accepted  
-**Date:** 2026-11-04
+**Date:** 2026-11-05 (geometry storage choice clarified)
 
 **Context:** The application requires storing farm boundaries as polygons, calculating geodesic areas, performing spatial queries (which grid cells intersect a farm), and supporting spatial indexes. SQLite cannot do this.
 
-**Decision:** Use PostgreSQL with PostGIS extension. Use GeoDjango (`MultiPolygonField` with `geography=True`, SRID 4326) for farm boundaries.
+**Decision:** Use PostgreSQL with PostGIS. Store farm boundaries as GeoDjango `MultiPolygonField(srid=4326)` geometry by default. Perform overlay, intersection, clipping, and future raster/vector workflows in geometry with explicit CRS/units and suitable projections. For geodesic area/distance, cast the stored geometry to geography (or use an explicitly selected equal-area/local projected CRS when appropriate); never calculate metric area directly from longitude/latitude degrees. Keep API interchange as GeoJSON in WGS84. Revisit storage type only if the required operation set is confirmed and measured.
 
 **Consequences:**
-- Accurate geodesic area calculations
+- Broad PostGIS geometry operation support for likely overlays and spatial processing
+- Geodesic area/distance remain available by geography cast without making geography the universal storage type
 - Spatial indexing for efficient polygon queries
 - All team members need PostgreSQL + PostGIS installed locally
 - More complex local setup than SQLite (documented in README)
@@ -134,7 +135,7 @@ Business rules live in `domain_services/` modules, not in serializers or views.
 ## ADR-008: Django App Structure — Domain-Based
 
 **Status:** Accepted  
-**Date:** 2026-11-04
+**Date:** 2026-11-05 (MVP region configuration clarified)
 
 **Context:** Putting everything in one Django app creates a monolithic `models.py` and tangled imports. The spec recommends domain-based separation.
 
@@ -143,9 +144,9 @@ Business rules live in `domain_services/` modules, not in serializers or views.
 | App | Owns |
 |---|---|
 | `accounts` | User model, profiles, authentication |
-| `geography` | Countries, regions, geographic configuration |
+| `geography` | Future country/region entities and geographic configuration; deferred for MVP |
 | `farms` | Farm, FarmZone, FarmBoundaryRevision, FarmSeason |
-| `agronomy` | Crop, CropVariety, CropSeasonRule, CropSuitabilityRule, CropRotationRule, RegionAgronomyProfile |
+| `agronomy` | Crop, CropVariety, CropSeasonRule, CropSuitabilityRule, CropRotationRule, and MVP `RegionAgronomyProfile` configuration |
 | `earth_data` | DatasetSource, DataFetchJob, EnvironmentalObservation, provider adapters |
 | `indicators` | Environmental snapshots, four gauges, derived features |
 | `recommendations` | Recommendation, RecommendationOption, RotationStep |
@@ -154,9 +155,9 @@ Business rules live in `domain_services/` modules, not in serializers or views.
 | `verification` | VerificationCase, VerificationItem, ExpertReview, VerificationEvidence |
 | `leaderboard` | LeaderboardSnapshot, regional rankings |
 
-For MVP: prioritize `accounts`, `farms`, `earth_data`, `agronomy`, `indicators`, `recommendations`, `simulations`, `engagement`.
+For MVP: create only the apps needed by the first vertical slice, then add `accounts`, `farms`, `earth_data`, `agronomy`, `indicators`, `recommendations`, `simulations`, and `engagement` as their phases begin. Do not scaffold unused apps in Phase 1.
 
-Defer: `verification`, `leaderboard`, `geography` (use simple country_code initially).
+Defer: `verification`, `leaderboard`, and a standalone `geography` app. MVP regional crop calendars are keyed by stable `RegionAgronomyProfile.region_code` values owned by `agronomy`; farm APIs use that same `region_code` and optionally `country_code`. This is configuration data, not a general region model.
 
 **Consequences:**
 - Each app owns its models and API resources
@@ -241,19 +242,21 @@ Defer: `verification`, `leaderboard`, `geography` (use simple country_code initi
 
 ---
 
-## ADR-013: Separation of Observed Data, Estimates, and Scenarios
+## ADR-013: Source-Aware Data Classification
 
 **Status:** Accepted  
-**Date:** 2026-11-04
+**Date:** 2026-11-05 (classification taxonomy corrected)
 
 **Context:** The spec requires strict separation between observed data, modeled estimates, user-provided values, and scenario outputs. Mixing them causes scientific misrepresentation.
 
-**Decision:** Every data value in the system carries a `data_category` field:
+**Decision:** Every value carries a source-aware `data_category`; broad labels must not conflate retrievals, assimilation/reanalysis, model outputs, or ground measurements:
 
 | Category | Meaning |
 |---|---|
-| `OBSERVED` | Direct satellite/sensor measurement or retrieval |
-| `MODELED_ESTIMATE` | Derived from models (e.g., SoilGrids, SMAP L4 assimilation) |
+| `REMOTE_SENSING_RETRIEVAL` | Product-specific satellite retrieval (for example, a documented satellite soil-moisture or land-surface-temperature retrieval) |
+| `REANALYSIS_OR_ASSIMILATION_ESTIMATE` | Meteorological assimilation/reanalysis inputs such as POWER meteorology sourced from MERRA-2/GEOS-IT |
+| `MODELLED_ESTIMATE` | Model-derived spatial products such as SoilGrids predictions or SMAP L4 model-assimilation output |
+| `GROUND_MEASURED` | Weather-station or laboratory measurement |
 | `USER_PROVIDED` | Farmer-entered value (soil test, crop history, etc.) |
 | `DERIVED` | Calculated from other values (seasonal sum, anomaly, gauge score) |
 | `SCENARIO` | Hypothetical future simulation result |
@@ -262,4 +265,18 @@ Defer: `verification`, `leaderboard`, `geography` (use simple country_code initi
 - Frontend can display appropriate labels and disclaimers
 - Users understand what is measured vs. modeled vs. hypothetical
 - Scientific integrity maintained throughout the pipeline
+
+---
+
+## Phase 0 Decision Log and Open Decisions
+
+**Decision date:** 2026-11-05. This log records documentation-level decisions; proposed choices remain provisional where noted.
+
+- **Region/calendar API:** Use `RegionAgronomyProfile.region_code` in the MVP, owned by `agronomy`; no standalone geography app/model is required. Region choice and crop/calendar contents remain team decisions.
+- **Data priority:** NASA POWER is the first planned working source. GPM IMERG is an optional Phase 3/P1 stretch integration after POWER, not a prerequisite for the MVP vertical slice.
+- **Report export:** P1; the MVP may use an ordinary browser print action only if convenient, without a dedicated export contract.
+- **80% gate:** Not in P0. Keep the master handoff's game/product-rule concept deferred to P1 pending a team decision on whether it is needed for judging. If introduced, it must measure plan/input completeness only, never scientific confidence or certification; define required fields and reviewer action before implementation.
+- **Authentication identity:** Phase 0 API contract selects `username` as the registration/login identifier and `email` as contact data. Change only before Phase 2 and update the contract consistently if the team decides otherwise.
+- **Demo region, farmer persona, crop system, local calendar, crop catalog sources/reviewer, map library, LLM provider, and deployment target:** unresolved team decisions; see `PROJECT_STATUS.md` and `DEVELOPMENT_PLAN.md`.
+- **Data completeness/confidence:** Contract returns explicit assessment states and method metadata; numeric values are illustrative only until denominator, weighting, and evidence-quality methods are approved.
 

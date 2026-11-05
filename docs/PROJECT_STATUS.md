@@ -1,99 +1,95 @@
 # AgroSpace Quest — Project Status
 
-**Last updated:** 2026-11-04  
+**Last updated:** 2026-11-05
 **Current phase:** Phase 0 — Project Analysis and Implementation Planning  
-**Phase status:** ⏳ Awaiting review — **NOT APPROVED**
+**Phase status:** ✅ APPROVED WITH DOCUMENTATION FIXES — corrections applied; ready for Phase 1
 
-> Phase 0 deliverables are complete, but the review has **not** been signed off. Do not
-> start Phase 1 and do not tag `phase-0-approved` until approval is recorded here.
+> Phase 0 planning and documentation corrections are complete. This status does not start Phase 1. No application code, models, or migrations have been created. The team should resolve the open product decisions recorded below during the appropriate phase.
 
----
+## Repository Audit (current checkout)
 
-## Repository Audit
-
-| Item | Status |
+| Item | Actual status |
 |---|---|
-| Repository | Git initialised; no application code yet |
-| Default branch | `main` (stable) |
-| Integration branch | `develop` |
-| Current work branch | `phase/0-documentation-review` |
-| Backend (`backend/`) | Empty directory |
-| Frontend (`frontend/`) | Empty directory |
-| Documentation (`docs/`) | Master Handoff + Phased Coding Playbook + Phase 0 docs present |
-| `docs/GIT_WORKFLOW.md` | Present |
-| README.md | Empty file |
-| `.gitignore` | Present (Python/Django, Node/React, env, IDE, logs, caches, NASA/geospatial data) |
-| `.env.example` | Not present (planned for Phase 1) |
-| Git | Initialised — baseline commit on `main` |
-| GitHub remote | Not configured — GitHub CLI (`gh`) not installed on this machine |
-| Dependencies | None installed |
-| Tests | None exist |
+| Repository | Git repository initialized; current branch is `main` |
+| Local branches | `main`, `develop`, `phase/0-documentation-review` |
+| Remote | `origin` configured to `https://github.com/Amr-767/nasa.git`; current `main` tracks `origin/main` |
+| Backend (`backend/`) | Directory exists and is empty; no Django project or application code |
+| Frontend (`frontend/`) | Directory exists and is empty; no React/Vite application code |
+| Documentation (`docs/`) | Master Handoff, Phased Coding Playbook, Phase 0 docs, Git workflow, review, and risk register present |
+| `README.md` | Present, empty (0 bytes) |
+| `.gitignore` | Present |
+| `.env.example` | Not present; planned for Phase 1 |
+| Dependencies | No project dependencies installed/configured |
+| Tests | No project tests exist |
 | Database | Not configured |
+| Current documentation changes | Uncommitted in the working tree; review file and risk register are new |
 
-## What Exists
+### Documentation inventory
 
-- `docs/AgroSpace_Quest_Master_Agent_Handoff.md` — Full project specification (3,877 lines)
-- `docs/AgroSpace_Quest_Antigravity_Phased_Coding_Playbook.md` — Phased build guide (802 lines)
-- Empty `backend/`, `frontend/` directories
-- Empty `README.md`
+- [`AgroSpace_Quest_Master_Agent_Handoff.md`](AgroSpace_Quest_Master_Agent_Handoff.md) — 3,886 lines; primary product/specification source
+- [`AgroSpace_Quest_Antigravity_Phased_Coding_Playbook.md`](AgroSpace_Quest_Antigravity_Phased_Coding_Playbook.md) — 802 lines; phased execution guide
+- [`AgroSpace_Quest_Phase0_Review.md`](AgroSpace_Quest_Phase0_Review.md) — attached technical review copied into `docs/`
+- [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)
+- [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md)
+- [`API_CONTRACTS.md`](API_CONTRACTS.md)
+- [`DATA_PROVENANCE.md`](DATA_PROVENANCE.md)
+- [`RISK_REGISTER.md`](RISK_REGISTER.md)
+- [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md)
 
-## What Was Delivered in Phase 0
+## Phase 0 Completion
 
-- [x] Complete project requirements analysis
-- [x] Workspace inspection
-- [x] Backend/frontend/database/integration identification
-- [x] Django REST Framework + React + PostgreSQL/PostGIS architecture design
-- [x] MVP feature identification and separation from advanced/future
-- [x] Technical risk analysis
-- [x] Development order and dependencies
-- [x] `PROJECT_STATUS.md` (this file)
-- [x] `DEVELOPMENT_PLAN.md`
-- [x] `ARCHITECTURE_DECISIONS.md`
-- [x] `API_CONTRACTS.md`
-- [x] `DATA_PROVENANCE.md`
+- [x] Master requirements summarized into a feasible P0 journey
+- [x] Repository audit reconciled with the actual checkout
+- [x] Modular architecture and staged app boundaries documented
+- [x] Data model responsibilities and major relationships documented in the Master Handoff
+- [x] P0 API contracts cover the journey, including all three strategy enum values and structured evidence
+- [x] NASA POWER source classification, parameter-specific spatial support, and explicit UTC request convention corrected
+- [x] Region/calendar route aligned with the MVP `agronomy.RegionAgronomyProfile.region_code` configuration
+- [x] Risk register created with probability, impact, mitigation, owner, fallback, and resolution phase
+- [x] P0/P1/P2 choices aligned for GPM, report export, and the optional 80% gate
+- [x] Unresolved team decisions listed with proposed owners
+- [x] Phase 1 acceptance criteria include reproducible local setup and minimal scaffolding
+- [x] No application implementation started
 
-## Known Blockers / Decisions Required
+**Phase 0 decision:** Approved and ready for Phase 1 planning/execution. Do not start Phase 1 automatically as part of this documentation task.
+
+## Open Decisions and Dependencies
 
 | Decision | Status | Owner |
 |---|---|---|
-| Demonstration region (Egypt/Nile Delta/Gharbia is a candidate, not confirmed) | **NEEDS TEAM DECISION** | Team |
-| Farmer persona and farm type | **NEEDS TEAM DECISION** | Team |
-| Crop system and growing season | **NEEDS TEAM DECISION** | Team |
-| LLM provider for AI explanation assistant (P1 scope) | **DEFERRED** | Backend lead |
-| Deployment target (local demo vs. cloud) | **NEEDS TEAM DECISION** | Team |
-| NASA Earthdata Login credentials for SMAP/ECOSTRESS | **NEEDS SETUP** | Backend lead |
-| MapLibre vs. Leaflet for frontend maps | **NEEDS TEAM DECISION** | Frontend lead |
+| Demonstration region and stable `region_code` (Gharbia/Nile Delta is a candidate only) | Needs team decision | Team |
+| Farmer persona, farm scale, crop system, seasons/calendar | Needs team decision | Team + Person C |
+| Minimum regional crop catalog, accepted sources, and expert reviewer | Source/reviewer not selected | Person C; team to seek local agronomy review |
+| Authentication identity | Phase 0 API contract selects username; revise only if team decides to change before Phase 2 | Team + Person A |
+| Local setup approach and exact supported versions | Decide in Phase 1; reproducibility required, including Windows | Team + Persons A/B |
+| NASA POWER parameters, exact source products, units, and coverage for demo region | Verify official metadata before implementation | Person A + Person C |
+| Map library | Needs team decision | Person B |
+| NASA Earthdata credentials for optional SMAP/ECOSTRESS paths | Setup only if selected for P1 | Person A |
+| Grounded LLM provider | Deferred P1 | Backend lead |
+| Deployment target | Needs team decision | Team |
+| Dedicated report export and 80% plan-completeness gate | P1 deferred; decide only if demo need justifies | Team |
+
+## Corrected Scope Decisions
+
+- NASA POWER is the first planned integration. Its meteorological parameters are source-classified as reanalysis/assimilation estimates where applicable; its solar parameters need their product-specific classification. POWER is not uniformly a direct satellite observation.
+- Store POWER spatial support per parameter/product. Daily requests must explicitly specify `time-standard=UTC` because the API default is LST.
+- MVP crop calendar configuration uses a stable `region_code` backed by `agronomy.RegionAgronomyProfile`; a standalone `geography` app is deferred.
+- Farm boundaries are planned as SRID 4326 geometry. Use geography casts for geodesic area/distance, and geometry for spatial operations.
+- Three strategy types are defined in the API: `BASELINE`, `WATER_EFFICIENT`, `SOIL_REGENERATION`. Baseline is the farmer's actual entry; illustrative sequences/benefits are not factual results.
+- GPM is an optional P1/Phase 3 stretch integration after POWER.
+- Dedicated report export and the 80% plan-completeness/expert-review gate are P1 and deferred. If the gate is adopted, define required fields, denominator/weights, lock behavior, `NEEDS_EXPERT_REVIEW`, and reviewer unlock action. It is never a scientific confidence score.
 
 ## Git Workflow Status
 
-- Git repository initialised with `main`, `develop`, and `phase/0-documentation-review`.
-- Baseline commit created on `main`; `develop` and the Phase 0 review branch created from it.
-- Full workflow documented in [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md).
-- **No GitHub remote is configured yet** — GitHub CLI is not installed/authenticated.
-  See the setup instructions in `docs/GIT_WORKFLOW.md` and the project handoff notes.
-- No secrets committed. `.env` and credential files are ignored; `.env.example` is preserved.
-- `phase-0-approved` tag intentionally **not** created.
+- Current branch: `main`; local `develop` and `phase/0-documentation-review` branches also exist.
+- Remote `origin` is configured and `main` tracks `origin/main`.
+- [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md) documents the branch/PR workflow.
+- Documentation corrections are currently uncommitted. No tag is created as part of this task.
 
-## Next Task
+## Phase 1 (not started)
 
-**Phase 0 review sign-off** (then Phase 1 planning).
+**Project Foundation and Local Development Environment.** The next phase may begin only as a separate task after this documentation handoff.
 
-Review the Phase 0 deliverables, record the outstanding team decisions, and upon approval
-update this file (mark Phase 0 ✅ Approved) and tag `phase-0-approved`.
+Planned scope includes Django/DRF and React/Vite foundations, PostgreSQL/PostGIS and Redis setup, health endpoint, API versioning, environment example, and reproducible README instructions. Scaffold only what the first vertical slice requires; do not create unused empty domain apps. Prefer a repeatable Docker Compose setup for PostGIS and Redis with Django/Vite local, or document exact supported local versions and Windows steps.
 
-**Phase 1: Project Foundation and Local Development Environment** (do not start yet)
-
-Exact scope:
-1. Initialize Git with `.gitignore` and `develop` branch ✅ *(done)*
-2. Set up Django project with DRF, settings split, and `apps/` structure
-3. Set up React (Vite) frontend with basic structure
-4. Configure PostgreSQL/PostGIS connection
-5. Create `.env.example` with placeholder variables
-6. Add health check endpoint and frontend connectivity test
-7. Configure CORS, API versioning (`/api/v1/`)
-8. Add basic Celery/Redis configuration (without NASA tasks)
-9. Write `README.md` with reproducible setup instructions
-10. Run initial migrations and verify database connection
-
-**Do NOT start Phase 1 until this Phase 0 plan is reviewed and approved.**
-
+**Phase 1 acceptance:** documented backend/frontend startup; database and migrations work; public health endpoint responds; frontend connectivity works; reproducible setup instructions exist; starter checks pass when implementation is requested.

@@ -1,6 +1,6 @@
 # AgroSpace Quest — Data Provenance Registry
 
-**Last updated:** 2026-11-04  
+**Last updated:** 2026-11-05
 **Status:** Phase 0 — Planning. No data has been fetched yet.
 
 ---
@@ -22,13 +22,19 @@ This document records every data source used in AgroSpace Quest: the exact produ
 | **Community** | AG (Agroclimatology) |
 | **API Endpoint** | `https://power.larc.nasa.gov/api/temporal/daily/point` |
 | **Documentation** | [Daily API docs](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) |
-| **Spatial Resolution** | Varies by parameter; common grid is 0.5° × 0.5° (~55 km at equator). Exact native resolution depends on the source model/parameter. |
+| **Spatial Support / Resolution** | Parameter/product-specific and inherited from the original source; record the specific source product and support for every requested parameter. Do not assign one generic POWER grid. POWER meteorological MERRA-2 fields are described at 0.5° latitude × 0.625° longitude; this must not be generalized to all POWER parameters. |
 | **Temporal Resolution** | Daily |
 | **Temporal Coverage** | 1981 to near-real-time (meteorological latency ~2–3 days; solar ~5–7 days) |
 | **Format** | JSON, CSV |
 | **Authentication** | None required (public API) |
 | **Rate Limits** | Not formally documented; avoid excessive concurrent requests |
-| **Time Standard** | Configurable: UTC or LST (local solar time). **We will use UTC and document it.** |
+| **Time Standard** | The Daily API defaults to Local Solar Time (LST). The planned convention is UTC and every request must explicitly include `time-standard=UTC`; persist the requested and returned convention with the record. |
+
+### Source classification and parameter provenance
+
+POWER is an API/distribution service over multiple source products, not a single observation type. Meteorological parameters originate from assimilation/reanalysis products including MERRA-2 and GEOS-IT. Solar parameters are inferred from satellite observations using radiative-transfer methods. Set classification per parameter/product after verifying its documented source; do not label all POWER data as direct observations. The examples below are candidate parameters only and remain subject to catalog/unit verification.
+
+Official references: [POWER meteorological sources](https://power.larc.nasa.gov/docs/methodology/data/sources_meteorology/), [POWER data sources FAQ](https://power.larc.nasa.gov/docs/faqs/data/), [POWER methodology](https://power.larc.nasa.gov/docs/methodology/).
 
 ### MVP Variables (to verify against current parameter catalog)
 
@@ -51,7 +57,7 @@ This document records every data source used in AgroSpace Quest: the exact produ
 
 ### Processing Steps (planned)
 
-1. Request daily data for farm centroid coordinates, specified date range, UTC time standard
+1. Request daily data for farm centroid coordinates and specified date range with explicit `time-standard=UTC`
 2. Parse JSON response; validate parameter keys and units
 3. Handle missing values and fill/sentinel values per POWER documentation
 4. Store as `EnvironmentalObservation` records with source metadata
@@ -99,7 +105,7 @@ Not yet retrieved. Will be recorded on first live fetch.
 
 ### Integration Priority
 
-**Candidate for Phase 3 stretch goal.** Only integrate if the team can confidently retrieve, aggregate, and quality-check the data within the available time. NASA POWER precipitation (`PRECTOTCORR`) can serve as an initial rainfall proxy.
+**P1 / optional Phase 3 stretch goal, after POWER.** Only integrate if the team can confidently retrieve, aggregate, and quality-check the data within the available time. NASA POWER precipitation (`PRECTOTCORR`) can serve as the initial precipitation context; it is itself source-classified from its exact POWER parameter provenance.
 
 ### Retrieval Date
 
@@ -217,15 +223,35 @@ Not yet retrieved.
 
 | Category | Meaning | Example |
 |---|---|---|
-| `OBSERVED` | Satellite/sensor measurement or retrieval | NASA POWER temperature, GPM rainfall |
-| `MODELED_ESTIMATE` | Derived from models with uncertainty | SoilGrids properties, SMAP L4 assimilation |
+| `REMOTE_SENSING_RETRIEVAL` | Product-specific satellite retrieval; use only for a documented retrieval product/variable | A verified satellite retrieval product; classification depends on the exact product |
+| `REANALYSIS_OR_ASSIMILATION_ESTIMATE` | Meteorological estimate from assimilation/reanalysis | NASA POWER meteorology sourced from MERRA-2/GEOS-IT |
+| `MODELLED_ESTIMATE` | Model-derived spatial product or model-assimilation output | SoilGrids predictions; SMAP L4 |
+| `GROUND_MEASURED` | Direct station or laboratory measurement | Weather station; laboratory soil test |
 | `USER_PROVIDED` | Farmer-entered value | Soil test result, crop history, priorities |
 | `DERIVED` | Calculated from other values | Seasonal mean, anomaly, gauge score |
 | `SCENARIO` | Hypothetical future simulation | "What if rainfall decreases 15%?" |
 
+The `data_category` is assigned at parameter/product level, alongside the exact dataset, product/version, parameter, and derivation. GPM IMERG is a satellite-derived precipitation retrieval product rather than a ground rain-gauge observation. A direct laboratory test can be `GROUND_MEASURED`; when entered by a farmer, retain `USER_PROVIDED` as the record provenance and identify the claimed measurement method separately.
+
+## 8. Additional Datasets Referenced by the Master Handoff (P2 / Not Integrated)
+
+The entries below document possible future use only. Mention here does not mean the source is integrated or selected for the MVP. Verify exact collection, version, native support, access, units, and quality rules before implementation.
+
+| Dataset/product family | Intended use | Native support caveat | Limitation and deferral | Official documentation |
+|---|---|---|---|---|
+| Landsat surface reflectance / vegetation indices | Field-scale vegetation dynamics where field size and valid pixels permit | Product and collection dependent; commonly tens-of-meters pixels; cloud and revisit gaps matter | P2; requires collection/QA selection, compositing, and area coverage checks; greenness does not prove crop identity or farmer action | [USGS Landsat missions](https://www.usgs.gov/landsat-missions) |
+| MODIS MOD13 vegetation indices | Regional/seasonal vegetation pattern context | MOD13Q1 is a 16-day, 250 m product (collection/version must be verified) | P2; often too coarse for small farms; compositing and QA required | [NASA MODIS vegetation indices](https://modis.gsfc.nasa.gov/data/dataprod/mod13.php) |
+| GRACE / GRACE-FO | Large-scale groundwater/total-water-storage context | Regional mascon or gridded support, far coarser than a farm | P2; cannot support field-level water claims | [NASA GRACE](https://grace.jpl.nasa.gov/data/get-data/) |
+| SRTM elevation | Terrain, slope, and relative runoff/erosion context | DEM pixel support and void/processing characteristics vary by product | P2; slope alone does not estimate erosion rate | [NASA SRTM](https://www.earthdata.nasa.gov/data/instruments/srtm) |
+| GEDI | Sampled canopy structure/biomass context where relevant | Footprint samples, not wall-to-wall coverage | P2; sampling gaps and product interpretation make it unsuitable as a universal field layer | [NASA GEDI](https://gedi.umd.edu/data/) |
+
+## 9. Data Completeness and Confidence
+
+These are separate concepts. `data_completeness` describes required input/data coverage present divided by the applicable required checks. Its required-check list, denominator, and weighting policy are not yet approved; return `NOT_ASSESSED` with a reason until they are. If later approved, include the numerator, denominator, and method version. `confidence` describes evidence quality and suitability for a particular claim/recommendation; it must not be copied from completeness or inferred from it. Until a defensible rubric is approved, return `NOT_ASSESSED` plus explanatory factors rather than an invented numeric/ordinal confidence.
+
 ---
 
-## 8. Verification Checklist (Before Displaying Any Data)
+## 10. Verification Checklist (Before Displaying Any Data)
 
 - [ ] Is the product/version documented?
 - [ ] Are the units correct and explicitly stored?
@@ -233,14 +259,14 @@ Not yet retrieved.
 - [ ] Is the spatial resolution/support stated?
 - [ ] Are quality flags applied?
 - [ ] Are missing values handled (not treated as zero)?
-- [ ] Is the data category labeled (observed/modeled/user/derived/scenario)?
+- [ ] Is the source-aware data category labeled (retrieval/reanalysis or assimilation/modelled/ground-measured/user-provided/derived/scenario)?
 - [ ] Is the retrieval date recorded?
 - [ ] Is there a limitation note for the user?
 - [ ] Can the value be traced back to its source?
 
 ---
 
-## 9. References
+## 11. References
 
 1. NASA POWER Daily API — https://power.larc.nasa.gov/docs/services/api/temporal/daily/
 2. NASA POWER Temporal APIs — https://power.larc.nasa.gov/docs/services/api/temporal/
@@ -253,4 +279,7 @@ Not yet retrieved.
 9. NASA AppEEARS — https://appeears.earthdatacloud.nasa.gov/
 10. ISRIC SoilGrids — https://isric.org/explore/soilgrids
 11. ISRIC SoilGrids Documentation — https://docs.isric.org/globaldata/soilgrids/
+12. NASA POWER Meteorological Data Sources — https://power.larc.nasa.gov/docs/methodology/data/sources_meteorology/
+13. NASA POWER Data Sources FAQ — https://power.larc.nasa.gov/docs/faqs/data/
+14. NASA POWER Methodology — https://power.larc.nasa.gov/docs/methodology/
 
