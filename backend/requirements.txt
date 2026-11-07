@@ -1,0 +1,8 @@
+# AgroSpace Quest — backend (Phase 1B foundation, Phase 1D Celery)
+# Python 3.12+ (verified with 3.14 on Windows). Pin ranges keep Django 6.x.
+Django>=6.0,<6.1
+djangorestframework>=3.15,<4
+django-cors-headers>=4.6,<5
+psycopg[binary]>=3.2,<4
+python-dotenv>=1.0,<2
+celery[redis]>=5.4,<6
