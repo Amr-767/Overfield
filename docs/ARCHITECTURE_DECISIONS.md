@@ -1,6 +1,6 @@
 # AgroSpace Quest — Architecture Decision Records
 
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-05 (ADR-014 and ADR-015 added with Phase 1B)
 
 ---
 
@@ -265,6 +265,57 @@ Defer: `verification`, `leaderboard`, and a standalone `geography` app. MVP regi
 - Frontend can display appropriate labels and disclaimers
 - Users understand what is measured vs. modeled vs. hypothetical
 - Scientific integrity maintained throughout the pipeline
+
+---
+
+## ADR-014: Host-Local Django Against Compose PostgreSQL/Redis
+
+**Status:** Accepted  
+**Date:** 2026-11-05
+
+**Context:** Phase 1A already provides PostGIS and Redis via Docker Compose with localhost-only published ports. Re-creating those services or putting Django into Compose prematurely would risk replacing working infrastructure.
+
+**Decision:** Run Django on the host against `POSTGRES_HOST=127.0.0.1` and `POSTGRES_PORT` (default 55432). Keep Compose service hostname `postgres` documented for a future in-network Django container. Load shared credentials from the repository-root `.env`. Use `django.db.backends.postgresql` in Phase 1B; defer GeoDjango/`django.contrib.gis` until Phase 2 farm geometry work.
+
+**Consequences:**
+- Phase 1A Compose file stays unchanged
+- Windows developers reuse the verified Docker database
+- Switching to an in-Compose Django service later only requires changing `POSTGRES_HOST` to `postgres`
+- PostGIS capabilities remain available in the database image without enabling GeoDjango yet
+
+---
+
+## ADR-015: Django 6.0 and Minimal Phase 1B Dependencies
+
+**Status:** Accepted  
+**Date:** 2026-11-05
+
+**Context:** The host development machine uses Python 3.14. Django 6.0 officially supports Python 3.12–3.14 and matches Master Handoff GeoDjango documentation links. Phase 1B must avoid unused packages (Celery, JWT, geospatial Python libs, domain apps).
+
+**Decision:** Pin Django `>=6.0,<6.1` with DRF, `django-cors-headers`, `psycopg[binary]`, and `python-dotenv`. Create only `apps.core` for the health endpoint. Defer Celery (Phase 1D), React (Phase 1C), JWT/auth, and domain apps.
+
+**Consequences:**
+- Compatible with the installed Python 3.14 toolchain
+- Small dependency surface for hackathon onboarding
+- Clear extension path for later phases without scaffolding empty apps
+
+---
+
+## ADR-016: Celery Reuses the Phase 1A Redis Service
+
+**Status:** Accepted  
+**Date:** 2026-11-05
+
+**Context:** ADR-004 selects Celery + Redis for background work, and Phase 1A already runs a healthy, localhost-only Redis 7 container. Phase 1D must add a minimal worker without duplicating infrastructure or leaking credentials.
+
+**Decision:** Wire a `config.celery` app to the existing Redis service using environment variables. The broker uses Redis DB 0 and the result backend DB 1; both are derived in `config/settings/base.py` from `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`, with optional `CELERY_BROKER_URL`/`CELERY_RESULT_BACKEND` overrides. Tasks are discovered from each installed app's `tasks.py`. Only a `core.ping` probe task is added; NASA ingestion and domain tasks are deferred.
+
+**Consequences:**
+- No new container or Compose change; the Phase 1A stack is reused unchanged
+- Credentials stay in `.env`; no secret is hardcoded in settings or committed
+- `celery -A config worker` runs on the host; switching to an in-Compose worker later only needs a different broker URL
+- Windows developers must run the worker with `--pool=solo`
+- Django imports `config.celery` at startup, so `celery[redis]` becomes a hard backend dependency
 
 ---
 

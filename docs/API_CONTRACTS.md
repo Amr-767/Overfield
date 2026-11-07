@@ -1,14 +1,14 @@
 # AgroSpace Quest — API Contracts
 
 **Last updated:** 2026-11-05
-**Status:** Phase 0 — Design only. No endpoints implemented yet.  
+**Status:** Phase 1B — `GET /api/v1/health/` is implemented. All other endpoints remain design-only.  
 **Base URL:** `/api/v1/`  
-**Authentication:** JWT (Bearer token) via `djangorestframework-simplejwt`  
+**Authentication:** JWT (Bearer token) via `djangorestframework-simplejwt` (Phase 2; not installed yet)  
 **Format:** JSON  
 **Geometry:** GeoJSON ([longitude, latitude] convention)
 **Identity contract:** `username` is the registration/login identifier; `email` is a contact field and is not accepted as the token-login identifier. This is the Phase 0 API choice; the team may revise it before Phase 2 only by updating the contract consistently.
 
-**Scope labels:** Routes marked P0 form the planned end-to-end MVP contract; P1/P2 routes are optional/future. Examples are schema fixtures only and contain no verified farm, NASA, agronomic, or performance result unless explicitly identified as farmer-provided. No endpoint is implemented in Phase 0.
+**Scope labels:** Routes marked P0 form the planned end-to-end MVP contract; P1/P2 routes are optional/future. Examples are schema fixtures only and contain no verified farm, NASA, agronomic, or performance result unless explicitly identified as farmer-provided. Only the health endpoint is implemented as of Phase 1B.
 
 ---
 
@@ -516,15 +516,24 @@ The master handoff's locked/provisional concept is not part of P0. If adopted la
 
 ## 10. Health Check
 
-### GET `/api/v1/health/` — P0
+### GET `/api/v1/health/` — P0 — **implemented (Phase 1B)**
 System health check (no authentication required).
 
-**Response:** `200 OK`
+**Response:** `200 OK` when the database connection succeeds
 ```json
 {
   "status": "healthy",
   "database": "connected",
-  "timestamp": "2026-11-04T12:00:00Z"
+  "timestamp": "2026-11-05T18:26:38.885012Z"
+}
+```
+
+**Response:** `503 Service Unavailable` when the database connection fails
+```json
+{
+  "status": "unhealthy",
+  "database": "unavailable",
+  "timestamp": "2026-11-05T18:26:38.885012Z"
 }
 ```
 
