@@ -1,18 +1,18 @@
 # AgroSpace Quest — Project Status
 
-**Last updated:** 2026-11-05
-**Current phase:** Phase 1E — Full Foundation Integration Verification
-**Phase status:** ✅ COMPLETE — Phase 1 (1A–1D) verified end to end; 13 backend + 7 frontend tests passing
+**Last updated:** 2026-11-07
+**Current phase:** Phase 2 — Accounts, Farms, Geospatial Boundaries, and Farmer Inputs
+**Phase status:** ▶️ STARTED — Phase 1 published and merged into `develop`; `phase/2-farm-management` created
 
-> The Phase 1 foundation is complete and integration-verified: Docker PostGIS + Redis services healthy, Django health endpoint and CORS working, React production build serving the configured API, and Celery executing a task through Redis. Phase 1E added no features; it verified the existing foundation and added the missing 503-contract test. Phase 2 has not started.
+> The Phase 1 foundation is complete and integration-verified: Docker PostGIS + Redis services healthy, Django health endpoint and CORS working, React production build serving the configured API, and Celery executing a task through Redis. Phase 1E added no features; it verified the existing foundation and added the missing 503-contract test. Phase 1 work was committed on `phase/1-foundation`, merged into `develop` with `--no-ff`, and published to GitHub. Phase 2 development now continues on `phase/2-farm-management`.
 
 ## Repository Audit (current checkout)
 
 | Item | Actual status |
 |---|---|
-| Repository | Git repository initialized; current branch is `phase/1-foundation` |
-| Local branches | Includes `main`, `develop`, `phase/0-documentation-review`, and `phase/1-foundation` |
-| Remote | `origin` configured to `https://github.com/Amr-767/nasa.git`; current branch tracks `origin/phase/1-foundation` |
+| Repository | Git repository initialized; current branch is `phase/2-farm-management` |
+| Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management` |
+| Remote | `origin` configured to `https://github.com/Amr-767/nasa.git`; all five branches published and tracking their origin counterparts |
 | Backend (`backend/`) | Django 6.0.10 project with `config/` split settings, `apps.core` health API, DRF, CORS, PostgreSQL via Phase 1A env |
 | Frontend (`frontend/`) | React 19 + TypeScript + Vite app: env-driven API client (`src/api/`), `Layout`/`HomePage`/`BackendStatus`, oxlint config, Vitest tests |
 | Documentation (`docs/`) | Master Handoff, Phased Coding Playbook, Phase 0 docs, Git workflow, review, and risk register present |
@@ -188,9 +188,13 @@ client unit tests.
 
 ## Git Workflow Status
 
-- Current branch: `phase/1-foundation`, tracking `origin/phase/1-foundation`.
-- Phase 1A/1B/1C/1D implementation and Phase 1E verification are in the working tree and pending team review/commit.
+- Current branch: `phase/2-farm-management`, tracking `origin/phase/2-farm-management`.
+- Phase 1 commits (`ad00e60` scaffold, `7441a43` docs) published on `origin/phase/1-foundation`.
+- Phase 1 merged into `develop` via `25855ef` (`merge(phase-1): integrate foundation into develop`) and pushed.
+- `phase/2-farm-management` created from latest `develop` and pushed.
+- `main` still at the Phase 0 baseline (`d59156b`); update it after the Phase 1 milestone is formally tagged.
+- No milestone tags created yet.
 
 ## Next recommended task
 
-**Phase 2 — Accounts, Farms, Geospatial Boundaries, and Farmer Inputs.** Await Phase 1 review before starting. Do not start Phase 2 until Phase 1 is accepted.
+**Phase 2 — Accounts, Farms, Geospatial Boundaries, and Farmer Inputs.** Work on `phase/2-farm-management`. Commit per `docs/GIT_WORKFLOW.md`; when the phase is complete and verified, merge into `develop` with `--no-ff`.
