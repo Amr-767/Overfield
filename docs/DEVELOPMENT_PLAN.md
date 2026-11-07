@@ -50,31 +50,42 @@ Dedicated PDF/CSV report export and the optional 80% plan-completeness review ga
 ### Phase 1 — Project Foundation and Local Development Environment
 **Model:** Flash (Opus if architecture issues) | **Code changes:** Foundation only
 
+Phase 1 is executed as incremental slices so infrastructure and application scaffolding stay reviewable:
+
+| Slice | Scope | Status |
+|---|---|---|
+| **1A** | Docker Compose PostGIS + Redis, `.env.example`, infra README | ✅ Complete |
+| **1B** | Django/DRF foundation, env settings, CORS, `/api/v1/health/`, backend tests | ✅ Complete |
+| **1C** | React/Vite foundation + frontend health connectivity check | ✅ Complete |
+| **1D** | Celery/Redis minimal worker config + test task | ✅ Complete |
+| **1E** | Full foundation integration verification (1A–1D end to end) | ✅ Complete |
+
 **Tasks:**
 1. Initialize Git with `.gitignore`, `develop` branch
-2. Django project: `config/` with split settings (base/dev/prod)
-3. Create only the project/configuration structure needed for the first vertical slice; defer unused domain apps until their phase
-4. React frontend: Vite + React + basic project structure
-5. PostgreSQL + PostGIS configuration
-6. `.env.example` with all placeholder variables
-7. CORS/CSRF configuration for local dev
-8. Health check endpoint: `GET /api/v1/health/`
-9. Minimal React-to-Django connectivity check
-10. Celery/Redis minimal config + test task
-11. API versioning convention: `/api/v1/`
-12. Formatting/linting setup (Black, isort, Ruff for Python; ESLint, Prettier for JS)
-13. `README.md` with reproducible setup instructions
+2. Django project: `config/` with split settings (base/dev/prod) — **1B done**
+3. Create only the project/configuration structure needed for the first vertical slice; defer unused domain apps until their phase — **1B done**
+4. React frontend: Vite + React + basic project structure — **1C done**
+5. PostgreSQL + PostGIS configuration — **1A done; Django connected in 1B**
+6. `.env.example` with all placeholder variables — **1A/1B done**
+7. CORS/CSRF configuration for local dev — **1B done**
+8. Health check endpoint: `GET /api/v1/health/` — **1B done**
+9. Minimal React-to-Django connectivity check — **1C done**
+10. Celery/Redis minimal config + test task — **1D done**
+11. API versioning convention: `/api/v1/` — **1B done**
+12. Formatting/linting setup — frontend lint (oxlint) and Vitest tests added in 1C; Python formatters (Black, isort, Ruff) and Prettier remain deferred
+13. `README.md` with reproducible setup instructions — **1A/1B/1C done**
 
 **Acceptance criteria:**
-- Backend starts with documented commands
-- Frontend starts with documented commands
-- Local setup is reproducible on supported team machines, including Windows; prefer Docker Compose for PostGIS and Redis with Django/Vite local, or document exact alternatives and versions
-- Health endpoint responds successfully
-- Frontend can call health endpoint
-- Database connection works
-- Migrations run
-- Automated starter tests pass
-- README has reproducible instructions
+- Backend starts with documented commands — **met in 1B**
+- Frontend starts with documented commands — **met in 1C**
+- Local setup is reproducible on supported team machines, including Windows; prefer Docker Compose for PostGIS and Redis with Django/Vite local, or document exact alternatives and versions — **infra + backend met**
+- Health endpoint responds successfully — **met in 1B**
+- Frontend can call health endpoint — **met in 1C (verified live and via unit tests)**
+- Database connection works — **met in 1B**
+- Migrations run — **met in 1B**
+- Automated starter tests pass — **backend 13 (1B/1D) and frontend 7 (1C) passing**
+- README has reproducible instructions — **met for 1A/1B/1C**
+- Full foundation integration verified end to end (services, DB, Redis, health, CORS, build, Celery) — **met in 1E**
 
 **Dependencies:** Phase 0 approval
 
