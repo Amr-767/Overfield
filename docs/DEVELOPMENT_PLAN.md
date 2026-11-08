@@ -136,6 +136,20 @@ the prototype tile source with configurable URL and visible attribution.
 ### Phase 3 — NASA Data Providers and Asynchronous Ingestion
 **Model:** Opus | **Code changes:** Provider adapters, Celery tasks, data models
 
+**Status:** ▶️ STARTED (2026-11-07) — branch `phase/3-nasa-integration` created from `develop`;
+environment placeholders and slice plan prepared. **No Phase 3 feature code has been written yet.**
+
+| Slice | Scope | Status |
+|---|---|---|
+| **3A** | Research + verify NASA POWER endpoint/parameters/units/format from official docs; record exact URLs and access date in `DATA_PROVENANCE.md`; provider adapter interface (`fetch`/`normalize`) | ⏳ Next |
+| **3B** | `earth_data` models: `DatasetSource`, `DataFetchJob`, `EnvironmentalObservation` (+ migrations, indexes, idempotency key) | ⏳ |
+| **3C** | Celery ingestion task with `queued/running/succeeded/partially_succeeded/failed`, timeouts, bounded retry/backoff, error logging | ⏳ |
+| **3D** | Scan-status API (`POST /farms/{id}/scans/`, `GET /data-jobs/{id}/`) and mocked-fixture tests | ⏳ |
+| **3E** | One documented manual live NASA POWER check (not part of the automated suite) | ⏳ |
+
+**Environment additions already prepared:** `NASA_POWER_BASE_URL`, `NASA_POWER_TIMEOUT_SECONDS`,
+`NASA_POWER_MAX_RETRIES` in `.env.example` (NASA POWER needs no API key).
+
 **Tasks:**
 1. Research and verify NASA POWER API (current endpoint, parameters, units, format)
 2. Implement NASA POWER adapter with provider interface

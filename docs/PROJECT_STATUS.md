@@ -1,8 +1,8 @@
 # AgroSpace Quest — Project Status
 
 **Last updated:** 2026-11-07
-**Current phase:** Phase 2 — ✅ **COMPLETE** (integration-audited end to end), pending commit/merge
-**Phase status:** ✅ ACCEPTED — browser E2E 26/26, geospatial 14/14, permissions 12/12, 76 backend + 53 frontend tests, production build OK
+**Current phase:** Phase 3 — NASA Data Providers and Asynchronous Ingestion (**setup only**)
+**Phase status:** ✅ Phase 2 accepted, published and merged into `develop` · ▶️ Phase 3A not started
 
 > The Phase 1 foundation is complete and integration-verified. **Phase 2 Step 0** moved Django into the Compose stack so GeoDjango runs with native GDAL/GEOS/PROJ (ADR-018), enabled the PostGIS backend, verified the spatial stack end to end, and recorded the Leaflet + Leaflet-Geoman mapping decision (ADR-017). **Phase 2 backend** added the account profile, JWT endpoints, `Farm`/`FarmZone`/`FarmerContext`/`FarmCropHistory` models, owner-scoped APIs, geodesic area calculation and 63 tests. **Phase 2 frontend** added the five-step farm onboarding wizard with a Leaflet + Geoman boundary editor, auth screens, farm list/detail pages, and 44 new frontend tests. Nothing is committed yet; no Phase 3 work has started.
 
@@ -410,17 +410,17 @@ No other Phase 2 defects were found. No schema, migration or contract changes we
 
 ## Git Workflow Status
 
-- Current branch: `phase/2-farm-management`, tracking `origin/phase/2-farm-management`.
-- Phase 2 Step 0 changes (Dockerfile, Compose service, GeoDjango settings, docs) are in the working tree and **not yet committed** — pending review.
-- Phase 2 backend implementation (accounts, farms, domain services, tests, migrations, docs) is also **uncommitted**; migrations are applied to the local database only.
-- Phase 2 frontend (onboarding, auth screens, farm list/detail, map, tests) is **uncommitted**.
-- Phase 1 commits (`ad00e60` scaffold, `7441a43` docs) published on `origin/phase/1-foundation`.
-- Phase 1 merged into `develop` via `25855ef` (`merge(phase-1): integrate foundation into develop`) and pushed.
-- `phase/2-farm-management` created from latest `develop` and pushed.
-- `main` still at the Phase 0 baseline (`d59156b`); update it after the Phase 1 milestone is formally tagged.
+- Phase 2 published on `phase/2-farm-management`: `f1657fe` (backend), `36a4e81` (frontend), `d9cf020` (docs).
+- Phase 2 merged into `develop` with `--no-ff` (`c4a03a6`) and pushed to `origin/develop`.
+- `phase/3-nasa-integration` created from the merged `develop` and pushed.
+- Current branch: `phase/3-nasa-integration` (Phase 3 setup commit only; no feature code).
+- `main` is still at the Phase 0 baseline (`d59156b`). Promote `develop` → `main` once Phase 1+2 are formally
+  approved (optionally with `phase-2-approved` tags); nothing is forced or rewritten.
 - No milestone tags created yet.
 
 ## Next recommended task
 
-**Commit Phase 2 and merge `phase/2-farm-management` into `develop`** per `docs/GIT_WORKFLOW.md`,
-then obtain team review. Phase 3 (NASA data providers) must not start until that merge is approved.
+**Phase 3A — NASA POWER research and provider adapter interface.** Verify the endpoint, parameters,
+units, temporal coverage, spatial support and response format against official NASA documentation,
+record the exact URLs and access date in `DATA_PROVENANCE.md`, then implement the `fetch`/`normalize`
+adapter. Do not integrate any other NASA product until POWER works end to end.
