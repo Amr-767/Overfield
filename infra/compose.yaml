@@ -19,6 +19,49 @@ services:
       retries: 5
       start_period: 10s
 
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    # Inside the Compose network Django reaches services by service name.
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,backend
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      CSRF_TRUSTED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      # Bind mount for local development reload; the container keeps its own
+      # site-packages, so the host virtualenv is never used.
+      - ../backend:/app
+      # Mask the Windows virtualenv with an empty volume: the container never
+      # needs it and the autoreloader must not walk ~100 MB of host packages.
+      - /app/.venv
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=5).status == 200 else 1)"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
   redis:
     image: redis:7.4.12
     restart: unless-stopped

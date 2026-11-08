@@ -39,8 +39,10 @@ develop-eggs/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repo root: a bare `lib/` would also match source such as
+# frontend/src/lib/ (which contains the onboarding logic).
+/lib/
+/lib64/
 parts/
 sdist/
 var/
