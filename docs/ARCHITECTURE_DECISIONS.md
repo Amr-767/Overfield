@@ -270,7 +270,9 @@ Defer: `verification`, `leaderboard`, and a standalone `geography` app. MVP regi
 
 ## ADR-014: Host-Local Django Against Compose PostgreSQL/Redis
 
-**Status:** Accepted  
+**Status:** Superseded in part by ADR-018 (2026-11-07) — Django now runs in Compose because
+GeoDjango needs native GEOS/GDAL/PROJ. The credential handling and service-reuse decisions
+below still apply.  
 **Date:** 2026-11-05
 
 **Context:** Phase 1A already provides PostGIS and Redis via Docker Compose with localhost-only published ports. Re-creating those services or putting Django into Compose prematurely would risk replacing working infrastructure.
@@ -319,6 +321,120 @@ Defer: `verification`, `leaderboard`, and a standalone `geography` app. MVP regi
 
 ---
 
+## ADR-017: Leaflet + Leaflet-Geoman Free for Farm Boundary Mapping
+
+**Status:** Accepted  
+**Date:** 2026-11-07  
+**Supersedes:** the open "Map library" item in the Phase 0 decision log
+
+**Context:** Phase 2 requires farmers to define a farm boundary by drawing and editing a polygon on a map, exporting it as GeoJSON, and viewing it again. The library must work with React 19 / TypeScript 7 / Vite 8, require no paid tile token or account, and remain usable while offline-ish for a hackathon demo. The audit found no map library installed and listed this as an open team decision.
+
+**Decision:** Use **Leaflet 1.9.x** with **`@geoman-io/leaflet-geoman-free` 2.x** for drawing, editing and removal, wrapped with **`react-leaflet` 5.x**. Verified peer dependencies (2026-11-07): `react-leaflet@5.0.0` requires `react ^19`, `react-dom ^19`, `leaflet ^1.9.0`; `@geoman-io/leaflet-geoman-free@2.20.6` requires `leaflet ^1.2.0`. The project is on React 19.3, so React Leaflet is compatible.
+
+**Required capabilities:**
+
+| Capability | Mechanism |
+|---|---|
+| Draw farm polygon | `map.pm.enableDraw("Polygon")` |
+| Edit polygon vertices | `layer.pm.enable()` |
+| Remove polygon | `layer.pm.remove()` / toolbar control |
+| GeoJSON export | `layer.toGeoJSON()` → sent as `geometry` |
+| GeoJSON display | `L.geoJSON(...)` on an existing farm |
+| Future MultiPolygon | Reuse the same GeoJSON layer and send `type: "MultiPolygon"`; the backend stores `MultiPolygonField` |
+
+**Tile source:** OpenStreetMap raster tiles are the prototype candidate, with the URL kept configurable (Vite env var) and visible OSM attribution rendered on the map. The project must follow the OSM tile usage policy: no bulk tile downloads, no offline scraping, and a stateable `User-Agent`/referrer if traffic grows. Switching to another provider only requires changing the tile URL template and attribution text.
+
+**Consequences:**
+- No API keys or accounts are needed for the P0 demo
+- Leaflet works on both the host dev server and static builds
+- Geoman Free covers draw/edit/remove without a paid license
+- The frontend must run GeoJSON in EPSG:4326 (`[longitude, latitude]`), matching ADR-010; Leaflet defaults to WGS84 lat/lon and needs coordinate-order care when serializing
+- Map components need jsdom plus canvas/`ResizeObserver` stubs under Vitest, or they must be isolated from DOM-heavy tests
+- A future 3D/vector-tile or satellite-imagery overlay would require MapLibre; the GeoJSON contract is unchanged if that swap happens
+- Dependencies are **not installed yet**; they belong to the Phase 2 frontend mapping task
+
+---
+
+## ADR-018: Dockerized Django Backend for GeoDjango
+
+**Status:** Accepted  
+**Date:** 2026-11-07  
+**Supersedes:** the run-location part of ADR-014 (host-local Django); ADR-014's credential handling and service reuse still apply
+
+**Context:** Phase 2 needs GeoDjango, which requires the native GEOS, GDAL and PROJ libraries. The audit verified that the Windows development host has none of them, that `pip install GDAL` only offers a source build there, and that simply adding `django.contrib.gis` fails at import time. Installing OSGeo4W per developer is fragile and hard to reproduce across the team (Risk R9 in the risk register).
+
+**Decision:** Run Django inside the existing Compose project. `backend/Dockerfile` uses `python:3.14-slim` (Debian 13 trixie) and installs `libgeos-dev`, `libgdal-dev`, `gdal-bin`, `libproj-dev`, `binutils` and `libpq5`. A `backend` service is added to `infra/compose.yaml` that:
+
+- builds from `backend/` with `backend/.dockerignore`
+- loads the repository-root `.env` via `env_file: ../.env`
+- overrides `POSTGRES_HOST=postgres`, `POSTGRES_PORT=5432`, `REDIS_HOST=redis` for the Compose network
+- bind-mounts `../backend:/app` for autoreload, with an anonymous volume masking the Windows `.venv`
+- publishes `127.0.0.1:8000` and health-checks `GET /api/v1/health/`
+- depends on healthy `postgres` and `redis`
+
+Django's database engine becomes `django.contrib.gis.db.backends.postgis` and `django.contrib.gis` is added to `INSTALLED_APPS`. Framework versions are unchanged (Django 6.0.x, DRF 3.18.x, Python 3.14). The React/Vite frontend stays on the host.
+
+**Verified in the running container (2026-11-07):** Python 3.14.10, GDAL 3.10.3, GEOS 3.13.1 (CAPI 1.19.2), PROJ 9.6.0 (data at `/usr/share/proj`), PostgreSQL 17.5 + PostGIS 3.5.2, `GEOSGeometry` round-trip and `ST_Area(...::geography)` working, 13/13 Phase 1 tests passing.
+
+**Consequences:**
+- GeoDjango works identically on every developer machine without host GIS installs
+- The Phase 1A PostgreSQL/Redis services and volumes are reused unchanged; no data reset
+- `docker compose ... up -d` now also starts Django; infrastructure-only workflows still use `up -d postgres redis`
+- Docker Desktop with Linux containers becomes a hard prerequisite for backend work
+- The host venv is no longer the runtime for the backend; it remains usable for editor tooling only
+- Celery workers must also run with the geospatial libraries, i.e. inside the same image (`docker compose exec backend celery ...`) rather than the Windows host
+- Bind-mount file watching uses Django's `StatReloader`; large directories must stay masked (`.venv`)
+- A production image should later drop `-dev` packages and use a multi-stage build
+
+---
+
+## ADR-019: Built-in Django User + FarmerProfile (no custom user model)
+
+**Status:** Accepted  
+**Date:** 2026-11-07  
+**Relates to:** ADR-008 (`accounts` owns user/profile), ADR-009 (JWT)
+
+**Context:** Phase 2 needs farmer registration, a display name and profile editing. The project already runs on `django.contrib.auth.User` with auth/admin/sessions migrations applied, and ADR-015 deliberately kept the dependency surface small. Introducing a bespoke `AUTH_USER_MODEL` after migrations exist requires resetting the development database and rewriting the admin/auth foreign keys, for no MVP capability gain. A second authentication system (separate user table) is explicitly out of scope.
+
+**Decision:** Keep `django.contrib.auth.User` as the **single** identity model, and add `accounts.FarmerProfile` as a one-to-one extension holding `display_name` and `preferred_language`. Registration creates the user and its profile in one transaction; JWT (`djangorestframework-simplejwt` 5.5.1, verified against Django 6.0.10) is the only authentication mechanism. Authorization is owner-based: every farm query is filtered by `owner=request.user`, with `IsFarmOwner` as defence in depth.
+
+**Consequences:**
+- No destructive database reset, and Phase 1 auth tables stay intact
+- Profile fields are added without touching Django's user schema
+- `accounts` still owns profile/authentication concerns per ADR-008
+- A future custom user model remains possible but would require a planned migration and data move; it is not needed for P0
+- Fields that belong to a farm (soil, water, crops, priorities) live in `farms.FarmerContext`, not on the profile, so they cannot be mistaken for global user attributes
+
+---
+
+## ADR-020: Identity-Scoped Client Cache and Session State
+
+**Status:** Accepted  
+**Date:** 2026-11-07 (raised by the Phase 2 integration audit)
+
+**Context:** The SPA caches server data with TanStack Query under resource-only keys
+(`['farms']`, `['farm', id]`). The audit reproduced an account switch on one browser:
+Farmer B's empty farm list stayed cached, so Farmer A's farms did not appear after signing
+back in. The reverse order would briefly render one farmer's cached farms to another user.
+The onboarding draft in `sessionStorage` had the same cross-identity exposure.
+
+**Decision:** Treat every authentication transition as an identity boundary:
+
+- `queryClient.clear()` runs on successful login, successful registration and sign-out, so no
+  server data cached for one identity can be served to another.
+- Sign-out also clears the onboarding draft and step cursor (`clearDraft`, `clearStep`).
+- Access tokens stay in memory; the refresh token stays in `sessionStorage` (per tab) and is
+  exchanged on load so a reload or a token expiry does not sign the farmer out.
+
+**Consequences:**
+- No cross-account data exposure through the client cache on shared devices
+- One extra refetch per query after each sign-in (negligible for Phase 2 volumes)
+- Query keys remain simple resource keys; identity does not need to be embedded in every key
+- A saved farm is unaffected: this is purely client-side cache and draft state
+- Covered by `src/auth/AuthProvider.test.tsx`
+
+---
+
 ## Phase 0 Decision Log and Open Decisions
 
 **Decision date:** 2026-11-05. This log records documentation-level decisions; proposed choices remain provisional where noted.
@@ -328,6 +444,9 @@ Defer: `verification`, `leaderboard`, and a standalone `geography` app. MVP regi
 - **Report export:** P1; the MVP may use an ordinary browser print action only if convenient, without a dedicated export contract.
 - **80% gate:** Not in P0. Keep the master handoff's game/product-rule concept deferred to P1 pending a team decision on whether it is needed for judging. If introduced, it must measure plan/input completeness only, never scientific confidence or certification; define required fields and reviewer action before implementation.
 - **Authentication identity:** Phase 0 API contract selects `username` as the registration/login identifier and `email` as contact data. Change only before Phase 2 and update the contract consistently if the team decides otherwise.
-- **Demo region, farmer persona, crop system, local calendar, crop catalog sources/reviewer, map library, LLM provider, and deployment target:** unresolved team decisions; see `PROJECT_STATUS.md` and `DEVELOPMENT_PLAN.md`.
+- **Demo region, farmer persona, crop system, local calendar, crop catalog sources/reviewer, LLM provider, and deployment target:** unresolved team decisions; see `PROJECT_STATUS.md` and `DEVELOPMENT_PLAN.md`.
+- **Map library:** resolved 2026-11-07 — Leaflet + Leaflet-Geoman Free with React Leaflet (ADR-017).
+- **Backend run location:** resolved 2026-11-07 — Django runs in Docker for GeoDjango (ADR-018), replacing host-local Django from ADR-014.
+- **User model:** resolved 2026-11-07 — the built-in `auth.User` is the single identity model, extended by `accounts.FarmerProfile` (ADR-019); no custom user model or second auth system.
 - **Data completeness/confidence:** Contract returns explicit assessment states and method metadata; numeric values are illustrative only until denominator, weighting, and evidence-quality methods are approved.
 

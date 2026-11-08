@@ -11,17 +11,20 @@ Explainable crop-rotation decision support using NASA Earth data.
 
 ## Local infrastructure (Phase 1A)
 
-PostgreSQL with PostGIS and Redis run in Docker. Application services are not
-defined in Compose; Django runs on the host against the published ports.
+PostgreSQL with PostGIS and Redis run in Docker. From Phase 2 Step 0 the Django
+backend also runs in Docker (see "Dockerized backend" below), because GeoDjango
+requires native GEOS/GDAL/PROJ libraries. The React/Vite frontend still runs on
+the host.
 
 ### Start infrastructure
 
 1. Copy `.env.example` to `.env` if it is not already present, and set unique
    local-development passwords and a `DJANGO_SECRET_KEY`. Never commit `.env`.
-2. Start the services from the repository root:
+2. Start the infrastructure services from the repository root (omit `backend`
+   here; `up -d` alone would also build and start Django):
 
    ```powershell
-   docker compose --env-file .env -f infra/compose.yaml up -d
+   docker compose --env-file .env -f infra/compose.yaml up -d postgres redis
    ```
 
 3. Check readiness:
@@ -49,7 +52,74 @@ docker compose --env-file .env -f infra/compose.yaml down
 To remove the persistent database volume as well (this permanently deletes all
 local PostgreSQL data), run `docker compose --env-file .env -f infra/compose.yaml down -v`.
 
-## Backend (Phase 1B)
+## Dockerized backend (Phase 2 Step 0)
+
+Django 6 + DRF + GeoDjango run inside the `backend` Compose service
+(`python:3.14-slim`, GDAL 3.10.3, GEOS 3.13.1, PROJ 9.6.0). See ADR-018 and
+`backend/Dockerfile`.
+
+### Start everything
+
+From the repository root:
+
+```powershell
+docker compose --env-file .env -f infra/compose.yaml up -d --build
+```
+
+The first build installs the geospatial libraries and Python dependencies. The
+service waits for healthy `postgres` and `redis`, then serves Django on
+`http://127.0.0.1:8000` with autoreload enabled. Source edits under `backend/`
+restart the server automatically because the directory is bind-mounted.
+
+### Common commands
+
+```powershell
+# Service status (backend reports its own health)
+docker compose --env-file .env -f infra/compose.yaml ps
+
+# Follow Django logs / autoreload output
+docker compose --env-file .env -f infra/compose.yaml logs -f backend
+
+# Django checks, migrations and tests inside the container
+docker compose --env-file .env -f infra/compose.yaml exec backend python manage.py check
+docker compose --env-file .env -f infra/compose.yaml exec backend python manage.py migrate
+docker compose --env-file .env -f infra/compose.yaml exec backend python manage.py test tests -v 2
+
+# Interactive shell
+docker compose --env-file .env -f infra/compose.yaml exec backend python manage.py shell
+
+# Rebuild after changing backend/requirements.txt or the Dockerfile
+docker compose --env-file .env -f infra/compose.yaml up -d --build backend
+
+# Infrastructure only (no Django) - same as Phase 1A
+docker compose --env-file .env -f infra/compose.yaml up -d postgres redis
+```
+
+Inside the Compose network Django uses `POSTGRES_HOST=postgres`,
+`POSTGRES_PORT=5432` and `REDIS_HOST=redis`; the Compose service overrides the
+host-oriented values in `.env`. Public ports stay bound to `127.0.0.1`.
+
+### GeoDjango smoke check
+
+```powershell
+docker compose --env-file .env -f infra/compose.yaml exec backend python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.dev'); import django; django.setup(); from django.contrib.gis.geos import GEOSGeometry; from django.contrib.gis.gdal import gdal_version; print('GDAL', gdal_version()); print(GEOSGeometry('POLYGON((0 0,0 1,1 1,1 0,0 0))').area)"
+```
+
+### Celery worker
+
+The worker must run in the same image as Django (same settings, same native
+libraries):
+
+```powershell
+docker compose --env-file .env -f infra/compose.yaml exec backend celery -A config worker --loglevel=info
+```
+
+---
+
+## Backend on the host (Phase 1B, superseded)
+
+> Historical reference only. From Phase 2 Step 0 the backend runs in Docker
+> because the host has no GDAL/GEOS; the host venv is not a supported runtime.
 
 Django 6 + Django REST Framework, configured from the repository-root `.env`.
 
@@ -104,7 +174,7 @@ python manage.py test tests -v 2
 | Variable | Purpose |
 |---|---|
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Database credentials (shared with Compose) |
-| `POSTGRES_HOST` | `127.0.0.1` for host-local Django; `postgres` only inside Compose |
+| `POSTGRES_HOST` | `127.0.0.1` for host tools; the Compose `backend` service overrides it to `postgres` |
 | `POSTGRES_PORT` | Host-mapped port (default `55432`) |
 | `DJANGO_SECRET_KEY` | Django secret key |
 | `DJANGO_DEBUG` | Debug flag |
@@ -153,11 +223,24 @@ Expected output: `pong`.
 
 No domain or NASA tasks exist yet; `core.ping` only proves the worker and broker work.
 
-## Frontend (Phase 1C)
+## Frontend (Phase 2)
 
-React 19 + TypeScript + Vite. The app renders a backend-connectivity check
-against `GET /api/v1/health/` and reads the API base URL from
-`VITE_API_BASE_URL`.
+React 19 + TypeScript + Vite with React Router 7, TanStack Query 5 and
+Leaflet 1.9 + Leaflet-Geoman. The app provides JWT sign-in/registration and the
+five-step farm onboarding flow.
+
+### Routes
+
+| Route | Screen |
+|---|---|
+| `/` | Landing page + backend status |
+| `/login`, `/register` | Sign in / create account |
+| `/onboarding` | Profile → Farm details → Draw your farm → Farm information → Review |
+| `/farms` | Saved farms (owner only, loaded from the API) |
+| `/farms/:id` | Saved farm detail with boundary map, area and farmer context |
+
+Protected routes redirect to `/login` and return to the requested page after signing in.
+Onboarding progress is kept in `sessionStorage` per tab so a reload resumes the same step.
 
 ### Setup
 
@@ -171,17 +254,29 @@ npm install
 public browser-safe values belong in Vite env files; never put Django secrets,
 database passwords, or NASA credentials here.
 
+The map uses OpenStreetMap raster tiles by default with visible attribution
+(follow the OSM tile usage policy — no bulk downloads). Override the tile source
+if needed:
+
+```text
+VITE_TILE_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png
+VITE_TILE_ATTRIBUTION=&copy; OpenStreetMap contributors
+```
+
 ### Run
 
-With infrastructure and the Django backend already running:
+With the Docker backend already running (`http://127.0.0.1:8000`):
 
 ```powershell
 cd frontend
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173/`. The page shows the configured API base URL and
-the health `status`, `database`, and `timestamp` returned by Django.
+Open `http://127.0.0.1:5173/`, create an account, then add a farm. The boundary
+toolbar draws a polygon; the area shown comes from the backend
+(`POST /api/v1/farms/validate-boundary/`), not from the browser. If you cannot
+draw a boundary, switch to "Just a location" and enter an approximate area — it
+is stored as farmer-reported with low spatial precision.
 
 ### Build, lint, and test
 
@@ -189,9 +284,12 @@ the health `status`, `database`, and `timestamp` returned by Django.
 cd frontend
 npm run build   # tsc -b && vite build
 npm run lint    # oxlint
-npm test        # vitest
+npm test        # vitest (51 tests)
 ```
 
-## Not in this phase
+## Not implemented yet
 
-- Domain models, NASA integrations, auth, recommendations (Phase 2+)
+- NASA data providers and ingestion (Phase 3)
+- Environmental indicators, crop recommendations, simulations (Phases 4–6)
+- Zones editing UI, farm editing UI, and farm deletion from the SPA
+- Leaderboards, rewards and verification (Phase 8)

@@ -6,9 +6,13 @@ from django.test import SimpleTestCase, TestCase
 
 
 class SettingsConfigurationTests(SimpleTestCase):
-    def test_api_uses_split_settings_and_postgres(self) -> None:
+    def test_api_uses_split_settings_and_postgis(self) -> None:
         self.assertTrue(settings.SECRET_KEY)
-        self.assertEqual(settings.DATABASES["default"]["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(
+            settings.DATABASES["default"]["ENGINE"],
+            "django.contrib.gis.db.backends.postgis",
+        )
+        self.assertIn("django.contrib.gis", settings.INSTALLED_APPS)
         self.assertIn("corsheaders", settings.INSTALLED_APPS)
         self.assertIn("rest_framework", settings.INSTALLED_APPS)
         self.assertTrue(

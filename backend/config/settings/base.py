@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -60,11 +61,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # GeoDjango (Phase 2 Step 0) — PostGIS backend + spatial fields.
+    "django.contrib.gis",
     # Third-party
     "corsheaders",
     "rest_framework",
     # Local
     "apps.core.apps.CoreConfig",
+    "apps.accounts.apps.AccountsConfig",
+    "apps.farms.apps.FarmsConfig",
 ]
 
 MIDDLEWARE = [
@@ -98,12 +103,14 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-# PostgreSQL via Phase 1A Docker Compose.
-# Host-local Django uses 127.0.0.1 + POSTGRES_PORT (default 55432).
-# A future Django container would set POSTGRES_HOST=postgres (Compose service name).
+# PostgreSQL/PostGIS via Phase 1A Docker Compose.
+# The Django container sets POSTGRES_HOST=postgres and POSTGRES_PORT=5432
+# (Compose network). A host-local Django would use 127.0.0.1 + 55432 instead.
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        # GeoDjango backend — enables spatial fields, GiST indexes and PostGIS
+        # functions (ST_Area/ST_Intersects/geography casts).
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": env("POSTGRES_DB", "agrospace"),
         "USER": env("POSTGRES_USER", "agrospace"),
         "PASSWORD": env("POSTGRES_PASSWORD", ""),
@@ -115,6 +122,12 @@ DATABASES = {
         },
     }
 }
+
+# GeoDjango native library discovery (optional overrides).
+# In the Phase 2 Docker image GEOS/GDAL/PROJ are installed system-wide, so the
+# defaults resolve automatically; set these only for non-standard installs.
+GDAL_LIBRARY_PATH = env("GDAL_LIBRARY_PATH")
+GEOS_LIBRARY_PATH = env("GEOS_LIBRARY_PATH")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -150,8 +163,14 @@ CSRF_TRUSTED_ORIGINS = env_list(
 )
 
 REST_FRAMEWORK = {
+    # Phase 2: JWT is the only authentication mechanism and everything is
+    # private by default. Public endpoints (health, registration, token
+    # obtain/refresh) opt out explicitly on the view.
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
@@ -159,6 +178,14 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+}
+
+# JWT lifetimes (ADR-009). Tokens are short-lived; the SPA keeps the access
+# token in memory and refreshes it through /api/v1/auth/token/refresh/.
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 # ---------------------------------------------------------------------------
