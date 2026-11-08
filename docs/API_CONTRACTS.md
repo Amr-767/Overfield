@@ -1,21 +1,41 @@
 # AgroSpace Quest — API Contracts
 
-**Last updated:** 2026-11-05
-**Status:** Phase 1B — `GET /api/v1/health/` is implemented. All other endpoints remain design-only.  
+**Last updated:** 2026-11-07
+**Status:** Phase 2 backend implemented — health, authentication/profile, farms, zones, boundary validation and farmer context are live. Environmental scans, recommendations, simulations and gamification remain design-only.  
 **Base URL:** `/api/v1/`  
-**Authentication:** JWT (Bearer token) via `djangorestframework-simplejwt` (Phase 2; not installed yet)  
+**Authentication:** JWT Bearer via `djangorestframework-simplejwt` 5.5.1 (implemented). All endpoints require a token except health, registration and token obtain/refresh.  
 **Format:** JSON  
-**Geometry:** GeoJSON ([longitude, latitude] convention)
-**Identity contract:** `username` is the registration/login identifier; `email` is a contact field and is not accepted as the token-login identifier. This is the Phase 0 API choice; the team may revise it before Phase 2 only by updating the contract consistently.
+**Geometry:** GeoJSON with `[longitude, latitude]` ordering; stored as `MultiPolygonField`/`PointField` SRID 4326
+**Identity contract:** `username` is the registration/login identifier; `email` is a contact field and is not accepted as the token-login identifier. Identity is Django's built-in `auth.User`, extended by `accounts.FarmerProfile` (ADR-019).
 
-**Scope labels:** Routes marked P0 form the planned end-to-end MVP contract; P1/P2 routes are optional/future. Examples are schema fixtures only and contain no verified farm, NASA, agronomic, or performance result unless explicitly identified as farmer-provided. Only the health endpoint is implemented as of Phase 1B.
+**Scope labels:** Routes marked P0 form the MVP contract; P1/P2 routes are optional/future. Examples are schema fixtures only and contain no verified farm, NASA, agronomic, or performance result unless explicitly identified as farmer-provided.
+
+### Implementation status
+
+| Endpoint | Status |
+|---|---|
+| `GET /health/` | ✅ Implemented (Phase 1B) |
+| `POST /auth/register/` | ✅ Implemented (Phase 2A) |
+| `POST /auth/token/` | ✅ Implemented (Phase 2A) |
+| `POST /auth/token/refresh/` | ✅ Implemented (Phase 2A) |
+| `GET/PATCH/PUT /me/` | ✅ Implemented (Phase 2A) |
+| `POST /farms/` | ✅ Implemented (Phase 2C) — boundary or point fallback |
+| `GET /farms/`, `GET/PATCH/PUT/DELETE /farms/{id}/` | ✅ Implemented (Phase 2C) |
+| `POST /farms/validate-boundary/` | ✅ Implemented (Phase 2C) |
+| `GET/POST /farms/{id}/zones/` | ✅ Implemented (Phase 2C) |
+| `GET/PUT/PATCH /farms/{id}/context/` | ✅ Implemented (Phase 2D) |
+| Sections 4–9 (scans, crops, recommendations, simulations, gamification) | ⏳ Design-only |
+
+**Error responses:** validation failures use DRF's field-keyed shape `{"field": ["message", ...]}`;
+authentication failures use `{"detail": "..."}` with `401`, and cross-user access returns
+`404` because querysets are owner-filtered.
 
 ---
 
 ## 1. Authentication
 
-### POST `/api/v1/auth/register/` — P0
-Create a new user account.
+### POST `/api/v1/auth/register/` — P0 — ✅ implemented
+Create a new user account and its `FarmerProfile`. Public (no token).
 
 **Request:**
 ```json
@@ -23,7 +43,8 @@ Create a new user account.
   "username": "farmer1",
   "email": "farmer1@example.com",
   "password": "secure_password",
-  "display_name": "Ahmed"
+  "display_name": "Ahmed",
+  "preferred_language": "en"
 }
 ```
 
@@ -33,12 +54,16 @@ Create a new user account.
   "id": 1,
   "username": "farmer1",
   "email": "farmer1@example.com",
-  "display_name": "Ahmed"
+  "display_name": "Ahmed",
+  "preferred_language": "en"
 }
 ```
 
-### POST `/api/v1/auth/token/` — P0
-Obtain JWT access + refresh tokens.
+Validation: `username` and `email` must be unique (case-insensitive); the password is checked with
+Django's configured password validators (`400` with a `password` field error when too weak).
+
+### POST `/api/v1/auth/token/` — P0 — ✅ implemented
+Obtain JWT access + refresh tokens (username + password).
 
 **Request:**
 ```json
@@ -56,8 +81,8 @@ Obtain JWT access + refresh tokens.
 }
 ```
 
-### POST `/api/v1/auth/token/refresh/` — P0
-Refresh access token.
+### POST `/api/v1/auth/token/refresh/` — P0 — ✅ implemented
+Refresh access token with a valid refresh token.
 
 **Request:**
 ```json
@@ -73,16 +98,19 @@ Refresh access token.
 }
 ```
 
-### GET `/api/v1/me/` — P0
-Get current user profile.
+### GET `/api/v1/me/` — P0 — ✅ implemented
+Get the authenticated farmer's profile. `PATCH`/`PUT` accept `display_name`, `preferred_language`
+and `email` (an email already used by another account is rejected with `400`).
 
 **Response:** `200 OK`
 ```json
 {
-  "id": 1,
   "username": "farmer1",
   "display_name": "Ahmed",
-  "email": "farmer1@example.com"
+  "email": "farmer1@example.com",
+  "preferred_language": "en",
+  "created_at": "2026-11-07T14:47:56.166001Z",
+  "updated_at": "2026-11-07T14:47:56.166012Z"
 }
 ```
 
@@ -90,24 +118,41 @@ Get current user profile.
 
 ## 2. Farms and Zones
 
-### POST `/api/v1/farms/` — P0
-Create a farm with GeoJSON boundary.
+### POST `/api/v1/farms/` — P0 — ✅ implemented
+Create a farm from a GeoJSON boundary, or from a location point with a farmer-reported area.
 
-**Request:**
+**Request (drawn boundary — preferred):**
 ```json
 {
   "name": "North Field",
   "country_code": "EG",
-  "region_code": "<team-selected-stable-code>",
-  "geometry": {
+  "region_code": "eg-gharbia",
+  "timezone": "Africa/Cairo",
+  "boundary": {
     "type": "Polygon",
     "coordinates": [[[30.9501, 30.7901], [30.9522, 30.7901], [30.9522, 30.7918], [30.9501, 30.7918], [30.9501, 30.7901]]]
   },
-  "timezone": "Africa/Cairo"
+  "location": { "type": "Point", "coordinates": [30.9511, 30.7909] }
 }
 ```
 
-> **Note:** Coordinates are `[longitude, latitude]`. The example coordinates are for schema illustration only, not a real recommended farm.
+`boundary` accepts a GeoJSON `Polygon`, `MultiPolygon` or `Feature`; `location` is optional
+and, when omitted, defaults to the boundary centroid. The response is normalised to
+`MultiPolygon`.
+
+**Request (point-only fallback — lower spatial precision):**
+```json
+{
+  "name": "Point Farm",
+  "location": { "type": "Point", "coordinates": [30.95, 30.79] },
+  "farmer_reported_area_hectares": "2.5000"
+}
+```
+`farmer_reported_area_hectares` is required when no boundary is supplied; it is stored with
+`area_source = FARMER_REPORTED` and `spatial_precision = LOW`.
+
+> **Note:** Coordinates are `[longitude, latitude]`. The example coordinates are for schema
+> illustration only, not a real recommended farm.
 
 **Response:** `201 Created`
 ```json
@@ -115,69 +160,116 @@ Create a farm with GeoJSON boundary.
   "id": 42,
   "name": "North Field",
   "country_code": "EG",
-  "region_code": "<team-selected-stable-code>",
+  "region_code": "eg-gharbia",
   "boundary": { "type": "MultiPolygon", "coordinates": [[[[30.9501, 30.7901], ...]]] },
-  "area_hectares": "4.2500",
+  "location": { "type": "Point", "coordinates": [30.95115, 30.79095] },
+  "area_hectares": "3.7882",
+  "area_source": "GEOMETRY_DERIVED",
+  "geometry_source": "BOUNDARY",
+  "spatial_precision": "HIGH",
   "timezone": "Africa/Cairo",
-  "created_at": "2026-11-04T12:00:00Z"
+  "zone_count": 0,
+  "created_at": "2026-11-07T14:48:00Z",
+  "updated_at": "2026-11-07T14:48:00Z"
 }
 ```
+
+**Field semantics**
+
+| Field | Meaning |
+|---|---|
+| `area_hectares` | Always computed server-side. Boundary farms: PostGIS `ST_Area(geometry::geography)` (geodesic, metres). Point farms: the farmer's reported value. |
+| `area_source` | `GEOMETRY_DERIVED` or `FARMER_REPORTED` |
+| `geometry_source` | `BOUNDARY` or `LOCATION_POINT` |
+| `spatial_precision` | `HIGH` for a drawn boundary, `LOW` for a point-only farm |
+
+Any client-supplied `area_hectares` is ignored.
+
+**Validation rules (all return `400` with a `boundary` field error)**
+
+- Geometry type must be `Polygon`/`MultiPolygon` (or a `Feature` wrapping one)
+- Coordinates must be `[longitude, latitude]` with lon ∈ [-180, 180] and lat ∈ [-90, 90]
+- Rings must be closed and have at least 4 positions
+- Geometry must be valid (no self-intersections), non-empty, and have non-zero area
+- Computed area must not exceed **10,000 ha** (also catches swapped coordinates)
 
 **Validation errors:** `400 Bad Request`
 ```json
 {
-  "geometry": ["Invalid polygon: geometry is not closed."],
-  "area_hectares": ["Calculated area exceeds maximum allowed (10000 ha)."]
+  "boundary": ["Invalid polygon: geometry is not closed (first and last position must match)."],
+  "farmer_reported_area_hectares": ["Required when only a location point is supplied (point-only farms cannot have a computed area)."]
 }
 ```
 
-### GET `/api/v1/farms/` — P0
-List the authenticated user's farms. Returns paginated farm summaries using the same fields as the create response.
+**Verified behaviours (Phase 2 integration audit, 2026-11-07):**
 
-### GET `/api/v1/farms/{farm_id}/` — P0
-Retrieve farm details (owner only).
+| Input | Result |
+|---|---|
+| Known 0.0021° × 0.0017° ring | `area_hectares = 3.7882` (geodesic) |
+| Same request plus `area_hectares: 999999` | client value ignored; `3.7882` stored |
+| Unclosed ring | `400` “geometry is not closed” |
+| Self-intersecting ring | `400` “self-intersecting or otherwise invalid” |
+| Latitude > 90 (e.g. swapped order) | `400` |
+| Ring larger than 10,000 ha | `400` “exceeds the maximum allowed” |
+| Empty `coordinates: []` | `400` |
+| Boundary farm / point farm | `GEOMETRY_DERIVED` + `HIGH` / `FARMER_REPORTED` + `LOW` |
 
-### PATCH `/api/v1/farms/{farm_id}/` — P0
-Update farm metadata.
+### GET `/api/v1/farms/` — P0 — ✅ implemented
+List the authenticated user's farms, paginated (20/page). Owner-filtered.
 
-### DELETE `/api/v1/farms/{farm_id}/` — P1
-Delete farm (owner only).
+### GET `/api/v1/farms/{farm_id}/` — P0 — ✅ implemented
+Retrieve farm details. Another user's farm returns `404`.
 
-### GET `/api/v1/farms/{farm_id}/zones/` — P0
-List farm zones; initially may return an empty paginated list. Each item is `{id, name, geometry, area_hectares}`.
+### PATCH/PUT `/api/v1/farms/{farm_id}/` — P0 — ✅ implemented
+Update `name`, `country_code`, `region_code`, `timezone`, `boundary` and/or `location`.
+Sending a new `boundary` recomputes `area_hectares` geodesically and resets
+`area_source` to `GEOMETRY_DERIVED`. A boundary cannot be cleared; a point-only farm may
+update `farmer_reported_area_hectares`.
 
-### POST `/api/v1/farms/{farm_id}/zones/` — P0
-Create a zone wholly within the farm. Request `{ "name": "North", "geometry": {"type":"Polygon", "coordinates":[...]}}`; response `201` returns the item shape above. Invalid or out-of-farm geometry returns `400`.
+### DELETE `/api/v1/farms/{farm_id}/` — P1 in Phase 0, ✅ implemented
+Delete a farm (owner only) and cascade its zones and context. Returns `204`.
+
+### POST `/api/v1/farms/validate-boundary/` — ✅ implemented
+Validate a candidate boundary without saving it (used before submit).
+Request `{"boundary": {...}}`; `200` returns `{valid, srid: 4326, area_hectares,
+area_method: "postgis_geography", geometry}`; invalid input returns `400`.
+
+### GET `/api/v1/farms/{farm_id}/zones/` — P0 — ✅ implemented
+Paginated list of the farm's zones: `{id, farm, name, boundary, area_hectares, notes, created_at}`.
+
+### POST `/api/v1/farms/{farm_id}/zones/` — P0 — ✅ implemented
+Create a zone wholly within the farm. Request `{ "name": "North", "boundary": {"type":"Polygon", "coordinates":[...]}, "notes": "" }`;
+`201` returns the zone shape above. The zone is rejected with `400` when its geometry is invalid,
+falls outside the farm boundary, or exceeds the farm area. Zones are optional and farmer-created;
+farms are never split automatically.
 
 ---
 
 ## 3. Farmer Context and Onboarding
 
-### GET `/api/v1/farms/{farm_id}/context/` — P0
-Retrieve the farmer's current crop routine, soil info, water, priorities, and constraints.
+### GET `/api/v1/farms/{farm_id}/context/` — P0 — ✅ implemented
+Retrieve the farmer's soil info, water availability, crop history, priorities and constraints.
+The context row is created lazily on first read; all measurements default to `null` (unknown).
 
 **Response:** `200 OK`
 ```json
 {
   "farm_id": 42,
-  "current_crops": [
-    {"season": "Winter 2025/26", "crop": "Wheat", "source": "FARMER_REPORTED"}
-  ],
-  "soil_info": {
-    "source": "FARMER_LAB_TEST",
-    "texture_class": "clay_loam",
-    "ph": 7.8,
-    "organic_carbon_percent": null,
-    "sampling_depth_cm": 30,
-    "method": null,
-    "lab_name": null,
-    "sample_date": "2026-03-15"
-  },
-  "water_availability": {
-    "irrigation_available": true,
-    "irrigation_type": "surface_canal",
-    "water_reliability": "seasonal_variable"
-  },
+  "soil_source": "LAB_TEST",
+  "texture_class": "clay_loam",
+  "ph": "7.80",
+  "organic_carbon_percent": null,
+  "nitrogen_ppm": "22.50",
+  "phosphorus_ppm": null,
+  "potassium_ppm": null,
+  "sampling_depth_cm": 30,
+  "sampling_method": "composite",
+  "lab_name": "Delta Soil Lab",
+  "sample_date": "2026-03-15",
+  "water_source": "FARMER_REPORTED",
+  "irrigation_available": true,
+  "irrigation_type": "surface_canal",
+  "water_reliability": "seasonal_variable",
   "priorities": {
     "water_conservation": 0.4,
     "soil_regeneration": 0.3,
@@ -186,14 +278,46 @@ Retrieve the farmer's current crop routine, soil info, water, priorities, and co
   },
   "constraints": {
     "equipment": ["no_mechanized_harvester"],
-    "seed_availability": "UNKNOWN",
+    "seed_availability": "unknown",
     "labor_availability": "family_labor_only"
-  }
+  },
+  "current_crops": [
+    {
+      "id": 1,
+      "season": "Winter 2025/26",
+      "crop": "Wheat",
+      "crop_code": "",
+      "source": "FARMER_REPORTED",
+      "notes": ""
+    }
+  ],
+  "created_at": "2026-11-07T14:48:00Z",
+  "updated_at": "2026-11-07T14:48:02Z"
 }
 ```
 
-### PUT/PATCH `/api/v1/farms/{farm_id}/context/` — P0
-Save/update farmer context using the response fields above. `current_crops` is an ordered season/crop history and baseline source; `soil_info` includes source, sampling depth/method/date and nullable measurements; `water_availability` includes irrigation access/type/reliability; `priorities` are named relative weights (must be non-negative and sum to 1 when supplied); `constraints` are explicit values or unknown. `null` means unknown, not "no constraint." Return `200` with the normalized saved context.
+**Provenance (`*_source`)** — `FARMER_REPORTED`, `LAB_TEST`, `EXTERNAL_PROVIDER`,
+`REMOTE_SENSING`, `UNKNOWN`. Each crop entry carries its own `source`. Values are never
+invented: an absent measurement is `null`, and `null` means *unknown*, not zero or "none".
+
+**Enumerations**
+
+- `texture_class`: `sand`, `loamy_sand`, `sandy_loam`, `loam`, `silt_loam`, `silt`, `clay_loam`,
+  `sandy_clay_loam`, `silty_clay_loam`, `clay`, `sandy_clay`, `silty_clay`, `unknown`
+- `irrigation_type`: `none`, `surface_canal`, `drip`, `sprinkler`, `flood`, `mixed`, `other`, `unknown`
+- `water_reliability`: `reliable`, `seasonal_variable`, `unreliable`, `unknown`
+
+### PUT/PATCH `/api/v1/farms/{farm_id}/context/` — P0 — ✅ implemented
+`PATCH` updates the supplied fields only; `PUT` replaces the context. `current_crops` is an
+ordered season/crop history (sending it replaces the previous list). Every field is optional.
+
+**Validation (`400`)**
+
+- `ph` must be within 0–14; `organic_carbon_percent` within 0–100
+- `priorities` keys are limited to `water_conservation`, `soil_regeneration`, `market_income`,
+  `forage_value`; weights must be non-negative and sum to 1 (±0.01) when supplied
+- `constraints` keys are limited to `equipment` (list), `seed_availability`, `labor_availability`
+- enum fields reject unknown values
 
 ---
 
@@ -565,6 +689,11 @@ All errors follow a consistent format:
 
 ## Notes
 
+- **Trailing slashes are required** on every path. Django's `APPEND_SLASH` cannot redirect
+  `PATCH`/`PUT`/`DELETE` while keeping the body, so `/farms/9` returns `500` while `/farms/9/` works.
+  The SPA always uses trailing slashes.
+- **Non-owner access returns `404`**, not `403`: farm querysets are filtered by owner, so another
+  farmer cannot tell whether a farm id exists. This applies to farm detail, context and zones.
 - All endpoints require JWT authentication unless otherwise noted (health check is public).
 - All list endpoints are paginated (default: 20 items per page).
 - All geometry is GeoJSON with `[longitude, latitude]` coordinate order.

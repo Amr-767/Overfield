@@ -1,8 +1,8 @@
 # AgroSpace Quest — Development Plan
 
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-07
 **Team size:** 3 persons  
-**Stack:** Django + DRF + PostgreSQL/PostGIS + React (Vite) + Celery/Redis  
+**Stack:** Django + DRF + GeoDjango (Dockerized) + PostgreSQL/PostGIS + React (Vite) + Leaflet/Leaflet-Geoman + Celery/Redis  
 **Challenge:** NASA Space Apps 2026 — Field Shift: Adapting Farms with NASA Data
 
 ---
@@ -91,11 +91,29 @@ Phase 1 is executed as incremental slices so infrastructure and application scaf
 
 ---
 
-### Phase 2 — Accounts, Farms, Geospatial Boundaries, and Farmer Inputs
+### Phase 2 — Accounts, Farms, Geospatial Boundaries, and Farmer Inputs ✅
 **Model:** Opus for spatial design, Flash for CRUD | **Code changes:** Backend models + APIs + basic frontend
 
+**Status:** ✅ Complete and integration-audited (2026-11-07). See the Phase 2 Integration Audit in
+`PROJECT_STATUS.md`. Dependencies for Phase 3 are satisfied once this branch is merged.
+
+| Slice | Scope | Status |
+|---|---|---|
+| **Step 0** | Dockerized Django with GDAL/GEOS/PROJ, GeoDjango + PostGIS backend enabled, SimpleJWT compatibility verified, mapping decision recorded (ADR-017/018) | ✅ Complete (2026-11-07) |
+| **2A** | `accounts`: `FarmerProfile` on built-in `auth.User` + JWT register/token/refresh/me | ✅ Complete (2026-11-07) |
+| **2B** | `domain_services.geometry`: GeoJSON validation, SRID 4326, geodesic area via PostGIS geography | ✅ Complete (2026-11-07) |
+| **2C** | `farms` models/APIs (Farm, FarmZone, FarmerContext, FarmCropHistory) with ownership permissions and spatial indexes | ✅ Complete (2026-11-07) |
+| **2D** | Frontend auth shell (router, token store, TanStack Query) + register/login screens | ✅ Complete (2026-11-07) |
+| **2E** | Frontend 5-step onboarding with Leaflet + Leaflet-Geoman draw/edit/remove, area preview, review, farm list/detail | ✅ Complete (2026-11-07) |
+
+**Environment:** Django runs in the `backend` Compose service (ADR-018). GeoDjango is
+enabled with the PostGIS backend; the host has no GDAL/GEOS, so host-local Django is no
+longer supported. The map library decision is closed: Leaflet 1.9 + Leaflet-Geoman Free
+2.x via React Leaflet 5 (peer-verified against React 19; ADR-017). OSM raster tiles are
+the prototype tile source with configurable URL and visible attribution.
+
 **Tasks:**
-1. User authentication (JWT via `djangorestframework-simplejwt`)
+1. User authentication (JWT via `djangorestframework-simplejwt` — compatibility with Django 6.0 verified in Step 0)
 2. `Farm` and `FarmZone` models with GeoDjango `MultiPolygonField` geometry (SRID 4326); cast to geography for geodesic area/distance, and use geometry for overlay/spatial operations
 3. GeoJSON validation through DRF serializers
 4. Geodesic area calculation from geometry via geography cast (or a justified equal-area projection)
@@ -111,7 +129,7 @@ Phase 1 is executed as incremental slices so infrastructure and application scaf
 - Farm creation and retrieval work through real API
 - Frontend submits and displays a farm
 
-**Dependencies:** Phase 1 complete
+**Dependencies:** Phase 1 complete; Phase 2 Step 0 complete (geospatial environment)
 
 ---
 
@@ -330,8 +348,8 @@ The optional 80% review gate is deferred to P1. If brought into scope, first def
 | Farmer persona, farm scale, crop system, and calendar season set | Team + Person C | Open |
 | Crop catalog minimum entries and source review | Person C, with local agronomy reviewer sought by team | Open; do not invent crop facts |
 | Authentication identity | Team + Person A | Phase 0 contract selects username; reopen only if the team changes it before Phase 2 |
-| Map library | Person B | Open |
-| Docker Compose vs exact local versions/setup | Team + Person A/B | Open for Phase 1 setup; reproducibility required |
+| Map library | Person B | ✅ Resolved 2026-11-07: Leaflet + Leaflet-Geoman Free (ADR-017) |
+| Docker Compose vs exact local versions/setup | Team + Person A/B | ✅ Resolved 2026-11-07: Django runs in Compose for GeoDjango (ADR-018) |
 | NASA POWER parameter/source mapping and selected variables | Person A + Person C | Verify official product metadata before implementation |
 | LLM provider, if P1 assistant is retained | Backend lead | Deferred |
 | Deployment target | Team | Open |
