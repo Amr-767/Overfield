@@ -1,7 +1,7 @@
 # AgroSpace Quest — API Contracts
 
-**Last updated:** 2026-11-07
-**Status:** Phase 2 backend implemented — health, authentication/profile, farms, zones, boundary validation and farmer context are live. Environmental scans, recommendations, simulations and gamification remain design-only.  
+**Last updated:** 2026-11-09
+**Status:** Phase 3E — health, auth/profile, farms/zones/context, NASA POWER scans, job status and daily observations are live. Crop catalog, recommendations, simulations and gamification remain design-only.
 **Base URL:** `/api/v1/`  
 **Authentication:** JWT Bearer via `djangorestframework-simplejwt` 5.5.1 (implemented). All endpoints require a token except health, registration and token obtain/refresh.  
 **Format:** JSON  
@@ -24,7 +24,10 @@
 | `POST /farms/validate-boundary/` | ✅ Implemented (Phase 2C) |
 | `GET/POST /farms/{id}/zones/` | ✅ Implemented (Phase 2C) |
 | `GET/PUT/PATCH /farms/{id}/context/` | ✅ Implemented (Phase 2D) |
-| Sections 4–9 (scans, crops, recommendations, simulations, gamification) | ⏳ Design-only |
+| `POST /farms/{id}/scans/` | ✅ Implemented (Phase 3E) |
+| `GET /data-jobs/{id}/` | ✅ Implemented (Phase 3E) |
+| `GET /farms/{id}/environment/daily/` | ✅ Implemented (Phase 3E) |
+| Sections 5–9 (crops, recommendations, simulations, gamification) | ⏳ Design-only |
 
 **Error responses:** validation failures use DRF's field-keyed shape `{"field": ["message", ...]}`;
 authentication failures use `{"detail": "..."}` with `401`, and cross-user access returns
@@ -323,36 +326,169 @@ ordered season/crop history (sending it replaces the previous list). Every field
 
 ## 4. Environmental Scan and Data
 
-### POST `/api/v1/farms/{farm_id}/scans/` — P0
-Queue an environmental data scan.
+All three endpoints require JWT and are **owner-scoped**: another farmer's farm or job returns
+`404`. They are implemented in `apps.earth_data` (Phase 3E).
+
+### POST `/api/v1/farms/{farm_id}/scans/` — P0 — ✅ implemented
+
+Queue a NASA POWER fetch for one farm. The view validates the request, plans the smallest window
+still missing data, creates the `DataFetchJob`, and enqueues the Celery task
+`earth_data.ingest_farm_environment`; it performs **no** provider HTTP itself.
+
+**Request (all fields optional):**
+```json
+{
+  "start": "2025-06-01",
+  "end": "2025-06-30",
+  "parameters": ["T2M", "PRECTOTCORR"],
+  "force": false
+}
+```
+
+* `start`/`end` default to `NASA_FETCH_DEFAULT_DAYS` (365) ending `NASA_FETCH_LATENCY_DAYS` (3)
+  before today.
+* `parameters` default to the seven verified codes.
+* `force: true` re-fetches even when every day already has data.
 
 **Response:** `202 Accepted`
 ```json
 {
-  "job_id": "job_8f23a1",
-  "status": "PENDING",
-  "message": "Your farm scan has been scheduled.",
-  "status_url": "/api/v1/data-jobs/job_8f23a1/"
+  "status": "QUEUED",
+  "farm_id": 42,
+  "job_id": "eaab5b85-4b9d-48fe-bc49-f9035515f4b1",
+  "task_id": "3c599ef9-88c3-4c58-a3ab-ff1cb6424705",
+  "start": "2025-06-01",
+  "end": "2025-06-30",
+  "parameters": ["T2M", "PRECTOTCORR"],
+  "status_url": "/api/v1/data-jobs/eaab5b85-4b9d-48fe-bc49-f9035515f4b1/"
 }
 ```
 
-### GET `/api/v1/data-jobs/{job_id}/` — P0
-Check background job status.
+| Situation | Status | Body |
+|---|---|---|
+| Queued | `202` | as above |
+| Data already complete for the window | `200` | `{status: "already_current", farm_id, start, end, parameters, detail}` — no job, no provider call |
+| Another scan is RUNNING for this farm | `409` | `{status: "already_running", farm_id, job_id, detail, status_url}` |
+| Invalid range / parameter / availability | `400` | field-keyed validation errors |
+| Broker unavailable | `503` | `{detail, job_id, status: "failed"}`; the job is recorded as `FAILED` |
+
+**Validation rules**
+
+* ISO dates (`YYYY-MM-DD`); `start <= end`
+* window ≤ `NASA_FETCH_MAX_RANGE_DAYS` (366)
+* `start >= 1981-01-01`, `end <= today`
+* parameter `start` must be ≥ that parameter's first available date (solar: `1984-01-01`)
+* parameter codes must exist in the active catalogue (unknown → `400` listing supported codes)
+* at most 20 parameters
+
+### GET `/api/v1/data-jobs/{job_id}/` — P0 — ✅ implemented
+
+Application-level status of one fetch operation. UUID `job_id`.
 
 **Response:** `200 OK`
 ```json
 {
-  "job_id": "job_8f23a1",
-  "status": "SUCCEEDED",
-  "started_at": "2026-11-04T12:01:00Z",
-  "completed_at": "2026-11-04T12:01:45Z",
-  "sources_fetched": ["NASA_POWER"],
-  "sources_failed": [],
-  "sources_partial": []
+  "job_id": "eaab5b85-4b9d-48fe-bc49-f9035515f4b1",
+  "farm_id": 42,
+  "provider": "NASA_POWER",
+  "status": "PARTIALLY_SUCCEEDED",
+  "requested_start": "2025-06-01",
+  "requested_end": "2025-06-30",
+  "parameters": ["T2M", "PRECTOTCORR"],
+  "days_requested": 30,
+  "days_stored": 30,
+  "days_missing": 2,
+  "error_code": "",
+  "error_message": "",
+  "created_at": "2026-11-09T13:00:00Z",
+  "started_at": "2026-11-09T13:00:01Z",
+  "finished_at": "2026-11-09T13:00:03Z",
+  "duration_ms": 2100,
+  "status_url": "/api/v1/data-jobs/eaab5b85-4b9d-48fe-bc49-f9035515f4b1/"
 }
 ```
 
-**Possible statuses:** `PENDING`, `RUNNING`, `SUCCEEDED`, `PARTIAL`, `FAILED`
+**Statuses:** `PENDING`, `RUNNING`, `SUCCEEDED`, `PARTIALLY_SUCCEEDED`, `FAILED`.
+`days_missing` counts days with at least one missing parameter; a partially successful scan is
+normal when POWER has not published recent days yet.
+
+> **Job status vs Celery state.** The `DataFetchJob` row is the application-level truth. Expected
+> provider failures (`PowerRequestError`, `PowerResponseError`, exhausted `PowerTransientError`)
+> are recorded on the job and the task returns a `failed` summary — the Celery state is `SUCCESS`
+> because the failure was handled. Unexpected internal errors are recorded and then re-raised, so
+> Celery reports `FAILURE` with a traceback for operators. Never infer data availability from the
+> Celery state; read the job.
+
+### GET `/api/v1/farms/{farm_id}/environment/daily/` — P0 — ✅ implemented
+
+Paginated daily observations for the farm.
+
+**Query parameters:** `start`, `end` (ISO dates, default = last 365 days ending 3 days ago),
+`parameter` (one code or comma-separated, repeatable), `page`.
+
+**Response:** `200 OK`
+```json
+{
+  "farm_id": 42,
+  "count": 49,
+  "next": "http://127.0.0.1:8000/api/v1/farms/42/environment/daily/?page=2",
+  "previous": null,
+  "range": {"start": "2025-06-01", "end": "2025-06-07"},
+  "parameters": [
+    {
+      "code": "T2M",
+      "units": "C",
+      "long_name": "Temperature at 2 Meters",
+      "product": "MERRA-2",
+      "daily_aggregation": "MEAN",
+      "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
+      "first_available_date": "1981-01-01"
+    }
+  ],
+  "spatial": {
+    "requested": {"longitude": "30.998000", "latitude": "30.787000"},
+    "returned": {"longitude": "30.998000", "latitude": "30.787000"},
+    "time_standard": "UTC",
+    "native_resolution_note": "0.5 deg x 0.625 deg (MERRA-2 native grid)",
+    "note": "Values are provider grid-cell estimates for the farm's representative point, not on-farm measurements."
+  },
+  "results": [
+    {
+      "date": "2025-06-01",
+      "parameter": "T2M",
+      "long_name": "Temperature at 2 Meters",
+      "value": "24.9500",
+      "unit": "C",
+      "quality_status": "AVAILABLE",
+      "source": "NASA_POWER",
+      "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
+      "time_standard": "UTC",
+      "fetch_job_id": "eaab5b85-4b9d-48fe-bc49-f9035515f4b1"
+    }
+  ]
+}
+```
+
+`value` is `null` with `quality_status: "MISSING"` when POWER has not published that day; missing
+values are never imputed. Raw provider payloads are not returned.
+
+**Decimal serialization (intentional).** Values are emitted as precision-preserving strings
+(`"24.9500"`), matching `area_hectares`, because DRF's default `COERCE_DECIMAL_TO_STRING` avoids
+binary-float drift. Frontends must convert explicitly for charts/aggregations:
+`Number(row.value)` (or `parseFloat`) and keep the `null` check first — `Number(null)` is `0`, which
+would silently turn a missing day into a zero reading. If a raw number is preferred later, switch the
+field to `FloatField` in `ObservationSerializer` and note the precision change in this contract.
+
+**Rate limiting (pre-public-deployment requirement).** `POST /scans/` has **no DRF throttle** yet.
+Current guards are the database-level one-RUNNING-job-per-farm constraint (`409`), the Celery
+`rate_limit=12/m` on the ingestion task, and the bounded 366-day window. That is adequate for the
+private development environment, but a public deployment needs per-user throttling — recommended
+`ScopedRateThrottle` at roughly **10 scans/hour and 60 reads/minute per user** (scans are expensive:
+one round-trip to POWER plus up to 2,566 writes). Tracked in `PROJECT_STATUS.md` as a blocker for
+public exposure, deliberately not implemented in Phase 3.
+
+**Validation (`400`)**: invalid date format, `start > end`, window > 366 days, future `end`,
+date before 1981-01-01, parameter before its first available date, unknown parameter.
 
 ### GET `/api/v1/farms/{farm_id}/environment/current/` — P0
 Latest farm environmental summary.
@@ -689,6 +825,8 @@ All errors follow a consistent format:
 
 ## Notes
 
+- **Environmental values are strings** (`"24.9500"`); convert with `Number(value)` after checking
+  for `null`.
 - **Trailing slashes are required** on every path. Django's `APPEND_SLASH` cannot redirect
   `PATCH`/`PUT`/`DELETE` while keeping the body, so `/farms/9` returns `500` while `/farms/9/` works.
   The SPA always uses trailing slashes.

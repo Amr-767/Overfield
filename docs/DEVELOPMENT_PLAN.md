@@ -136,19 +136,21 @@ the prototype tile source with configurable URL and visible attribution.
 ### Phase 3 — NASA Data Providers and Asynchronous Ingestion
 **Model:** Opus | **Code changes:** Provider adapters, Celery tasks, data models
 
-**Status:** ▶️ STARTED (2026-11-07) — branch `phase/3-nasa-integration` created from `develop`;
-environment placeholders and slice plan prepared. **No Phase 3 feature code has been written yet.**
+**Status:** ✅ COMPLETE and reviewed (2026-11-09) — slices 3A–3E plus closeout (provenance, review, throttle assessment) on `phase/3-nasa-integration`; awaiting Git checkpoint.
 
 | Slice | Scope | Status |
 |---|---|---|
-| **3A** | Research + verify NASA POWER endpoint/parameters/units/format from official docs; record exact URLs and access date in `DATA_PROVENANCE.md`; provider adapter interface (`fetch`/`normalize`) | ⏳ Next |
-| **3B** | `earth_data` models: `DatasetSource`, `DataFetchJob`, `EnvironmentalObservation` (+ migrations, indexes, idempotency key) | ⏳ |
-| **3C** | Celery ingestion task with `queued/running/succeeded/partially_succeeded/failed`, timeouts, bounded retry/backoff, error logging | ⏳ |
-| **3D** | Scan-status API (`POST /farms/{id}/scans/`, `GET /data-jobs/{id}/`) and mocked-fixture tests | ⏳ |
-| **3E** | One documented manual live NASA POWER check (not part of the automated suite) | ⏳ |
+| **3A** | Read-only NASA POWER audit: verified codes, units, aggregation meaning, fill value, time standard, per-parameter sources, availability | ✅ Complete (2026-11-09) |
+| **3B** | Reusable POWER client: stdlib `http.client` transport with separate connect/read timeouts, retries honouring `Retry-After`, query validation, typed errors, parsing/normalisation, TTL cache, 30 mocked tests | ✅ Complete (2026-11-09) |
+| **3C** | `earth_data` models + catalogue seed + persistence services: `DatasetSource`, `DataFetchJob`, `EnvironmentalObservation`, idempotent upsert, additive migrations | ✅ Complete (2026-11-09) |
+| **3D** | Celery ingestion task: `earth_data.ingest_farm_environment` with bounded retries, one-job-per-farm lock, refresh planning, enqueue helper | ✅ Complete (2026-11-09) |
+| **3E** | Environmental data REST API: `POST /farms/{id}/scans/`, `GET /data-jobs/{id}/`, `GET /farms/{id}/environment/daily/` with validation, pagination and owner scoping | ✅ Complete (2026-11-09) |
+| **Closeout** | Live-retrieval provenance record, full implementation review, throttle assessment, decimal-contract documentation | ✅ Complete (2026-11-09) |
 
-**Environment additions already prepared:** `NASA_POWER_BASE_URL`, `NASA_POWER_TIMEOUT_SECONDS`,
-`NASA_POWER_MAX_RETRIES` in `.env.example` (NASA POWER needs no API key).
+**Environment additions already prepared:** `NASA_POWER_BASE_URL`,
+`NASA_POWER_CONNECT_TIMEOUT_SECONDS`, `NASA_POWER_READ_TIMEOUT_SECONDS`, `NASA_POWER_MAX_RETRIES`,
+`NASA_POWER_BACKOFF_SECONDS`, `NASA_POWER_MAX_RETRY_AFTER_SECONDS`, `NASA_POWER_CACHE_TTL_SECONDS`
+in `.env.example` (NASA POWER needs no API key).
 
 **Tasks:**
 1. Research and verify NASA POWER API (current endpoint, parameters, units, format)
