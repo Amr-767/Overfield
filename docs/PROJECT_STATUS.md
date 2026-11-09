@@ -1,8 +1,8 @@
 # AgroSpace Quest — Project Status
 
 **Last updated:** 2026-11-07
-**Current phase:** Phase 3 — NASA Data Providers and Asynchronous Ingestion
-**Phase status:** ✅ Phase 3 COMPLETE, reviewed and QA-verified (3A–3F) · 175 backend + 53 frontend tests · uncommitted
+**Current phase:** Phase 4 — Environmental Indicators and Data Fusion (**setup only**)
+**Phase status:** ✅ Phase 3 published and merged into `develop` · ▶️ Phase 4A not started
 
 > The Phase 1 foundation is complete and integration-verified. **Phase 2 Step 0** moved Django into the Compose stack so GeoDjango runs with native GDAL/GEOS/PROJ (ADR-018), enabled the PostGIS backend, verified the spatial stack end to end, and recorded the Leaflet + Leaflet-Geoman mapping decision (ADR-017). **Phase 2 backend** added the account profile, JWT endpoints, `Farm`/`FarmZone`/`FarmerContext`/`FarmCropHistory` models, owner-scoped APIs, geodesic area calculation and 63 tests. **Phase 2 frontend** added the five-step farm onboarding wizard with a Leaflet + Geoman boundary editor, auth screens, farm list/detail pages, and 44 new frontend tests. Nothing is committed yet; no Phase 3 work has started.
 
@@ -663,16 +663,18 @@ branch `phase/3-nasa-integration` with no Git operations performed.
 
 ## Git Workflow Status
 
-- Phase 2 published on `phase/2-farm-management`: `f1657fe` (backend), `36a4e81` (frontend), `d9cf020` (docs).
-- Phase 2 merged into `develop` with `--no-ff` (`c4a03a6`) and pushed to `origin/develop`.
-- `phase/3-nasa-integration` created from the merged `develop` and pushed.
-- Current branch: `phase/3-nasa-integration`. Phase 3A–3E work is in the working tree and **not yet committed**.
-- `main` is still at the Phase 0 baseline (`d59156b`). Promote `develop` → `main` once Phase 1+2 are formally
-  approved (optionally with `phase-2-approved` tags); nothing is forced or rewritten.
+- Phase 2 published (`f1657fe`, `36a4e81`, `d9cf020`) and merged into `develop` (`c4a03a6`).
+- Phase 3 published on `phase/3-nasa-integration`: `0f9ee8f` (client + models), `3f6a1ee` (persistence + Celery),
+  `d2fdcb8` (REST API), `063c776` (provenance/contracts/QA docs).
+- Phase 3 merged into `develop` with `--no-ff` (`37db0b3`) and pushed.
+- `phase/4-environmental-engine` created from the merged `develop` and pushed; current branch.
+- `main` is still at the Phase 0 baseline (`d59156b`). Promote `develop` → `main` once the team approves
+  Phases 1–3 (optionally tagged `phase-3-approved`); nothing is forced or rewritten.
 - No milestone tags created yet.
 
 ## Next recommended task
 
-**Review and commit Phase 3** (`phase/3-nasa-integration` → `develop` with `--no-ff`), then start
-Phase 4 (environmental indicators and data fusion). `DATA_PROVENANCE.md` still needs the live-retrieval
-entry from the Phase 3D worker check.
+**Phase 4A — indicator definitions.** Fix the formulas, periods, units and quality rules for the
+seasonal summaries (mean/min/max temperature, precipitation total, dry-spell run length) against the
+verified POWER semantics recorded in `DATA_PROVENANCE.md`, then implement them as pure aggregation
+services in slice 4B. Do not add provider calls; Phase 4 reads stored observations only.

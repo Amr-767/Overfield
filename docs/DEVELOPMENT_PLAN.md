@@ -181,6 +181,19 @@ in `.env.example` (NASA POWER needs no API key).
 ### Phase 4 — Environmental Indicators and Data Fusion
 **Model:** Opus for design, Flash for implementation | **Code changes:** Indicator services, snapshot models, APIs
 
+**Status:** ▶️ STARTED (2026-11-09) — branch `phase/4-environmental-engine` created from the merged
+`develop`. Setup only: **no Phase 4 feature code yet.**
+
+| Slice | Scope | Status |
+|---|---|---|
+| **4A** | Indicator definitions from verified data: seasonal mean/min/max temperature, precipitation total, dry-spell run length, quality/freshness rules; record formulas, units and data gaps in `DATA_PROVENANCE.md`/`API_CONTRACTS.md` | ⏳ Next |
+| **4B** | `indicators` app: pure aggregation services over stored `EnvironmentalObservation` rows (no provider calls), explicit `NOT_ASSESSED`/`MISSING` handling, no imputation | ⏳ |
+| **4C** | `FarmEnvironmentalSnapshot` persistence + `GET /api/v1/farms/{id}/environment/current/` with per-indicator unit, period, source/product/parameter, spatial support, temporal convention and quality label | ⏳ |
+| **4D** | Fixture-based aggregation tests (known series → known results), API contract tests, missing-data and partial-window cases | ⏳ |
+
+**Prerequisites:** a valid Phase 3 scan for the farm (observations exist); the demonstration region
+decision (Risk R13) is still open and affects only interpretation/copy, not the maths.
+
 **Tasks:**
 1. Normalized internal representation for environmental variables
 2. Farm-level temporal aggregation (seasonal summaries)
