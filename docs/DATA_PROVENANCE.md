@@ -1,7 +1,7 @@
 # AgroSpace Quest — Data Provenance Registry
 
-**Last updated:** 2026-11-05
-**Status:** Phase 0 — Planning. No data has been fetched yet.
+**Last updated:** 2026-11-09
+**Status:** Phase 3 — live NASA POWER retrievals recorded (development environment).
 
 ---
 
@@ -24,7 +24,7 @@ This document records every data source used in AgroSpace Quest: the exact produ
 | **Documentation** | [Daily API docs](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) |
 | **Spatial Support / Resolution** | Parameter/product-specific and inherited from the original source; record the specific source product and support for every requested parameter. Do not assign one generic POWER grid. POWER meteorological MERRA-2 fields are described at 0.5° latitude × 0.625° longitude; this must not be generalized to all POWER parameters. |
 | **Temporal Resolution** | Daily |
-| **Temporal Coverage** | 1981 to near-real-time (meteorological latency ~2–3 days; solar ~5–7 days) |
+| **Temporal Coverage** | 1981-01-01 to near-real-time. **Verified 2026-11-09:** `T2M`/`PRECTOTCORR` valid from 1981-01-01; `ALLSKY_SFC_SW_DWN` valid only from **1984-01-01**. Observed latency ≈2 days (2026-11-08/09 returned the fill value on 2026-11-09). |
 | **Format** | JSON, CSV |
 | **Authentication** | None required (public API) |
 | **Rate Limits** | Not formally documented; avoid excessive concurrent requests |
@@ -46,7 +46,7 @@ Official references: [POWER meteorological sources](https://power.larc.nasa.gov/
 | `PRECTOTCORR` | Corrected precipitation | mm/day | Historical rainfall totals and dry-spell detection |
 | `RH2M` | Relative humidity at 2 m | % | Humidity context |
 | `WS2M` | Wind speed at 2 m | m/s | Optional ET/context inputs |
-| `ALLSKY_SFC_SW_DWN` | All-sky surface shortwave downward radiation | MJ/m²/day or kW-hr/m²/day | Solar/radiation context (verify unit) |
+| `ALLSKY_SFC_SW_DWN` | All-sky surface shortwave downward radiation | MJ/m²/day (verified 2026-11-09) | Solar/radiation context |
 
 ### Important Limitations
 
@@ -63,9 +63,119 @@ Official references: [POWER meteorological sources](https://power.larc.nasa.gov/
 4. Store as `EnvironmentalObservation` records with source metadata
 5. Aggregate to seasonal summaries in the indicators layer
 
+### Verified request/response facts (2026-11-09, API `v2.10.3`)
+
+| Fact | Verified value |
+|---|---|
+| Fill / missing sentinel | `header.fill_value = -999.0`; `null` also treated as missing. Both map to `None`, never stored as a number. |
+| Time standard | Daily defaults to **LST**; every request must send `time-standard=UTC` and the client asserts `header.time_standard` echoes `UTC`. Daily means differ between standards (T2M 16.15 °C UTC vs 16.17 °C LST on 2024-01-01). |
+| Daily aggregation | `T2M` = mean of 24 hourly values (verified 22.6621 → 22.66); `PRECTOTCORR` = **daily total** (verified hourly sum 0.42 = daily 0.42); `T2M_MAX`/`T2M_MIN` are daily extremes and are rejected by the hourly endpoint. |
+| Returned coordinates | `geometry.coordinates = [lon, lat, elevation_m]`, snapped to **0.001°** (request 30.9512/30.7909 → 30.951/30.791/4.96). This is **not** the model grid-cell centre. |
+| Native resolution | MERRA-2 **½° lat × ⅝° lon** (0.5° × 0.625°). The “0.5° × 0.5°” figure in the daily docs applies to **regional** requests only. |
+| Per-parameter source | `T2M`, `PRECTOTCORR` → `merra2`; `RH2M`, `WS2M` → `merra2,power` (derived); `ALLSKY_SFC_SW_DWN` → `syn1deg` (from the `x-data-sources` response header). |
+| CERES SYN1deg resolution | **Not verified** — the methodology page currently 404s. Do not display or claim a solar resolution until confirmed. |
+| Limits | ≤20 parameters per point request; `community` is required; start before 1981-01-01 → `422`; unknown parameter → `422` with `messages[]`. No `RateLimit-*` headers are exposed; docs warn that repeated identical requests to one location can be blocked (client caches identical queries). |
+| Error shape | `{"header": "...", "messages": ["..."]}` (HTTP 422) and FastAPI-style `{"detail": [...]}` for bad parameters. |
+
 ### Retrieval Date
 
-Not yet retrieved. Will be recorded on first live fetch.
+Read-only verification requests executed **2026-11-09** (audit + client smoke check).
+
+### Live retrievals (Phase 3D/3E)
+
+Three real retrievals were executed against the live API through the Celery worker and are stored in
+the development database. Every figure below was read back from `earth_data_datafetchjob` /
+`earth_data_environmentalobservation`; nothing is estimated.
+
+**Source and request shape (verified on both jobs)**
+
+| Field | Value |
+|---|---|
+| Provider / product | NASA POWER, Daily Point API `https://power.larc.nasa.gov/api/temporal/daily/point` |
+| Community | `AG` (Agroclimatology) |
+| Format | `JSON` |
+| Time standard | `UTC` (requested and echoed in `header.time_standard`) |
+| API version | `v2.10.3` (`POWER Daily API`) |
+| Farm | id 4 — "Demo - North Field (Gharbia)", boundary farm |
+| Representative point | `POINT_ON_SURFACE` of the largest boundary part |
+| Requested coordinates | longitude `30.998000`, latitude `30.787000` |
+| Returned coordinates | longitude `30.998000`, latitude `30.787000`, elevation `4.96 m` |
+
+**Run 1 — full MVP parameter set (Phase 3D worker check)**
+
+| Field | Verified value |
+|---|---|
+| Job id | `eaab5b85-4b9d-48fe-bc49-f9035515f4b1` |
+| Parameters | `T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, RH2M, ALLSKY_SFC_SW_DWN, WS2M` |
+| Requested range | 2025-06-01 → 2025-06-07 (7 days) |
+| Observations stored | **49** (7 parameters × 7 days), 0 missing |
+| Job status | `SUCCEEDED`, `days_stored = 7`, `days_missing = 0` |
+| Retrieval timestamps | created `2026-11-09T13:30:48.173137Z`, finished `2026-11-09T13:30:50.125018Z`, duration `1953 ms` |
+| Reported products | `MERRA2`, `SYN1DEG`, `POWER` |
+
+**Run 2 — two parameters (Phase 3E API smoke check)**
+
+| Field | Verified value |
+|---|---|
+| Job id | `48e3caf4-c545-4fa6-97c7-8c31192f4c88` |
+| Parameters | `T2M`, `PRECTOTCORR` |
+| Requested range | 2025-07-01 → 2025-07-07 (7 days) |
+| Observations stored | **14** (7 × `T2M` + 7 × `PRECTOTCORR`), 0 missing |
+| Job status | `SUCCEEDED`, `days_stored = 7`, `days_missing = 0` |
+| Retrieval timestamps | created `2026-11-09T13:49:19.078831Z`, finished `2026-11-09T13:49:20.445107Z`, duration `1367 ms` |
+| Reported products | `MERRA2` only (no solar parameter requested) |
+| Verification | `GET /api/v1/farms/4/environment/daily/?start=2025-07-01&end=2025-07-07&parameter=T2M` returned 7 rows; `GET /api/v1/data-jobs/{id}/` returned `SUCCEEDED` |
+
+**Run 3 — review probe completing the July window (full parameter set)**
+
+| Field | Verified value |
+|---|---|
+| Job id | `f1f7cd76-dea5-4477-96d4-a9acb39dfe83` |
+| Parameters | `T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, RH2M, ALLSKY_SFC_SW_DWN, WS2M` |
+| Requested range | 2025-07-01 → 2025-07-07 |
+| Observations (this job) | **49**; the 14 rows from Run 2 were updated in place, not duplicated |
+| Job status | `SUCCEEDED`, `days_stored = 7`, `days_missing = 0` |
+| Retrieval timestamps | created `2026-11-09T14:02:28.289178Z`, finished `2026-11-09T14:04:12.717438Z`, duration `104434 ms` (worker started after the task had been queued) |
+| Reported products | `MERRA2`, `SYN1DEG`, `POWER` |
+
+After the three runs the database holds **98 observation rows** for farm 4 (49 for June, 49 for July),
+which also demonstrates the idempotent upsert: re-running a window updates rows instead of adding them.
+
+**`T2M` daily-mean values stored for Run 2 (°C, read from the database)**
+
+| Date | Value (°C) |
+|---|---|
+| 2025-07-01 | 31.09 |
+| 2025-07-02 | 30.09 |
+| 2025-07-03 | 31.22 |
+| 2025-07-04 | 29.85 |
+| 2025-07-05 | 29.41 |
+| 2025-07-06 | 29.18 |
+| 2025-07-07 | 29.78 |
+
+`PRECTOTCORR` values for the same days are stored (units `mm/day`) and are queryable through the daily
+endpoint; they are omitted here to keep this entry readable.
+
+**Known limitations of these retrievals**
+
+- Values are **grid-cell estimates**, not on-farm measurements. MERRA-2 meteorological parameters use a
+  0.5° × 0.625° grid; the farm spans a small fraction of one cell.
+- The returned coordinates are POWER's 0.001°-rounded echo of the requested point (identically equal
+  here). They do **not** identify the underlying model grid-cell centre, so the exact cell cannot be
+  derived from the response.
+- `ALLSKY_SFC_SW_DWN` (Run 1) comes from CERES SYN1deg; its native resolution remains unverified and is
+  therefore left blank in the catalogue rather than asserted.
+- Values are published to two decimals; the platform stores them as `Decimal(10, 4)` without rounding
+  the source precision further.
+- Near-real-time latency is not visible in these runs because both windows are historical (2025).
+
+**Not recoverable / not recorded**
+
+- The API's internal timing metadata (`times.data`, `times.process`) and the raw JSON response body were
+  not persisted; only normalised observations, coordinates, units, API version and response product
+  list were stored.
+- The exact wall-clock time of the underlying provider computation is unknown; the timestamps above are
+  when the platform executed and completed the fetch.
 
 ---
 

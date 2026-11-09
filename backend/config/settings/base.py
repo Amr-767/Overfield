@@ -70,6 +70,8 @@ INSTALLED_APPS = [
     "apps.core.apps.CoreConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.farms.apps.FarmsConfig",
+    # Phase 3 — provider adapters (models arrive in a later slice).
+    "apps.earth_data.apps.EarthDataConfig",
 ]
 
 MIDDLEWARE = [
@@ -218,3 +220,35 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 600
 CELERY_TASK_SOFT_TIME_LIMIT = 540
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# ---------------------------------------------------------------------------
+# NASA POWER (Phase 3B) — public, keyless API.
+# The client applies these values; nothing here is a secret.
+# ---------------------------------------------------------------------------
+NASA_POWER_BASE_URL = env(
+    "NASA_POWER_BASE_URL", "https://power.larc.nasa.gov/api/temporal/daily/point"
+)
+NASA_POWER_CONNECT_TIMEOUT_SECONDS = float(env("NASA_POWER_CONNECT_TIMEOUT_SECONDS", "10"))
+NASA_POWER_READ_TIMEOUT_SECONDS = float(
+    env("NASA_POWER_READ_TIMEOUT_SECONDS", env("NASA_POWER_TIMEOUT_SECONDS", "30"))
+)
+NASA_POWER_MAX_RETRIES = int(env("NASA_POWER_MAX_RETRIES", "2"))
+NASA_POWER_BACKOFF_SECONDS = float(env("NASA_POWER_BACKOFF_SECONDS", "0.5"))
+NASA_POWER_MAX_RETRY_AFTER_SECONDS = float(env("NASA_POWER_MAX_RETRY_AFTER_SECONDS", "30"))
+NASA_POWER_CACHE_TTL_SECONDS = float(env("NASA_POWER_CACHE_TTL_SECONDS", "900"))
+
+# Phase 3D — ingestion task limits (no schedule is registered; tasks only run
+# when explicitly enqueued).
+NASA_POWER_TASK_MAX_RETRIES = int(env("NASA_POWER_TASK_MAX_RETRIES", "2"))
+NASA_POWER_TASK_RETRY_BACKOFF_SECONDS = int(env("NASA_POWER_TASK_RETRY_BACKOFF_SECONDS", "5"))
+NASA_POWER_TASK_RATE_LIMIT = env("NASA_POWER_TASK_RATE_LIMIT", "12/m")
+NASA_POWER_TASK_SOFT_TIME_LIMIT = int(env("NASA_POWER_TASK_SOFT_TIME_LIMIT", "300"))
+NASA_POWER_TASK_TIME_LIMIT = int(env("NASA_POWER_TASK_TIME_LIMIT", "360"))
+
+# Default scan window: one year ending before POWER's near-real-time gap.
+NASA_FETCH_DEFAULT_DAYS = int(env("NASA_FETCH_DEFAULT_DAYS", "365"))
+NASA_FETCH_LATENCY_DAYS = int(env("NASA_FETCH_LATENCY_DAYS", "3"))
+# A RUNNING job older than this is treated as abandoned and retired.
+NASA_FETCH_STALE_JOB_SECONDS = int(env("NASA_FETCH_STALE_JOB_SECONDS", "1800"))
+# Upper bound for one API request: keeps NASA calls and queries bounded.
+NASA_FETCH_MAX_RANGE_DAYS = int(env("NASA_FETCH_MAX_RANGE_DAYS", "366"))
