@@ -1,4 +1,4 @@
-# AgroSpace Quest — Architecture Decision Records
+# Overfield — Architecture Decision Records
 
 **Last updated:** 2026-11-05 (ADR-014 and ADR-015 added with Phase 1B)
 
@@ -435,6 +435,124 @@ The onboarding draft in `sessionStorage` had the same cross-identity exposure.
 
 ---
 
+## ADR-021: Demonstration Region — Gharbia (EG-GH)
+
+**Status:** Accepted (2026-11-09) — supersedes the "pending" part of ADR-011
+**Decision owner:** Team (approved after the Phase 4A audit)
+
+**Context:** Phase 4 indicators need a concrete region for crop calendars, market interpretation and
+farmer-facing copy. ADR-011 listed Egypt / Nile Delta / Gharbia as the candidate but left the decision
+open (Risk R13).
+
+**Decision:** Use **Gharbia Governorate, Egypt (Nile Delta)** as the initial demonstration region, with
+the stable region code **`EG-GH`** (ISO 3166-2 `EG-` prefix + governorate code) stored in the existing
+`Farm.region_code` field. `region_code` is `CharField(max_length=80)` and already accepts this value;
+no schema change is required. This is a **demonstration default**, not a permanent restriction: future
+regions use their own codes and the same field.
+
+**Consequences:**
+- Phase 5 crop calendars and the Phase 4 market interpretation can be written for Gharbia
+- Existing farms keep whatever code they were created with; no data migration
+- `region_code` remains free text (format validation is not enforced yet — a later slice may add it)
+- International support later means more region profiles, not a schema change
+
+---
+
+## ADR-022: Indicator Response Contract and No Numeric Scores in Phase 4
+
+**Status:** Accepted (2026-11-09) — decisions R14 and R20
+**Implementation:** `apps/indicators/contract.py`
+
+**Context:** The master brief sketches four gauges with 0–100 scores. A normalized score requires
+documented, region- and crop-aware thresholds plus agreed weights. Phase 4 has generic air-temperature
+and rainfall observations only, and no crop-stage model, so any 0–100 number would be invented.
+
+**Decision:**
+- Every indicator returns one shared envelope: `code, label, status, score, confidence, period,
+  coverage, summary, measurements, context, drivers, missing, methodology, sources, limitations`.
+- `score` is **always `null`** in Phase 4 (decision R14). Statuses carry the meaning instead:
+  `OK`, `PARTIAL`, `INSUFFICIENT_DATA`, `NOT_ASSESSED`, `UNAVAILABLE`.
+- Confidence uses non-overlapping coverage bands — `NONE = 0 %`, `LOW = (0, 60) %`,
+  `MEDIUM = [60, 95) %`, `HIGH = [95, 100] %` — capped for grid-cell sources, because a MERRA-2 cell
+  estimate cannot give HIGH confidence about a specific field.
+- Freshness is reported **separately** from confidence (`FRESH ≤ 7 d`, `RECENT ≤ 30 d`, `STALE`,
+  `UNKNOWN`) together with `latest_observation` and `age_days`.
+- Decimal values are serialized as strings to preserve precision (same convention as `area_hectares`).
+- Indicators are computed **on demand** from stored observations: no `FarmEnvironmentalSnapshot`
+  model and no new migrations in Phase 4 (decision R20). Caching is only added if profiling shows a
+  real problem.
+
+**Consequences:**
+- The API and UI can render all four gauges with one component
+- No fabricated precision or pseudo-scientific scoring
+- Phase 5 can introduce scores once crop-specific thresholds and a reviewed rubric exist
+- Missing data is explicit (`missing[]`, `coverage`) rather than a neutral zero
+
+---
+
+## ADR-023: Indicator Methodology (Water, Heat, Soil, Market)
+
+**Status:** Accepted (2026-11-09) — decisions R15–R19
+**Implementation:** `apps/indicators/services/` (water, heat in Phase 4B)
+
+**Water (R15):** window = latest available observation period (default 30 days, configurable);
+rainy day = `PRECTOTCORR ≥ 1.0 mm/day` (configurable); totals only over covered days; report expected,
+covered and missing days plus coverage ratio; dry spells only over contiguous observed days, and a
+gap interrupts the run — the longest **observed** run is reported with the limitation, or `null` when
+no day is observed. The indicator never claims soil moisture, plant-available water, irrigation
+demand, ET deficit or water stress.
+
+**Heat (R16):** generic exposure bands only — hot day `T2M_MAX ≥ 35 °C`, very hot day `≥ 40 °C`, cool
+night `T2M_MIN ≤ 5 °C` (all configurable). A cool night is **not** evidence of frost and none of these
+are universal agricultural or crop-stress thresholds. Crop-specific heat assessment belongs to Phase 5.
+
+**Soil (R17):** operational sample-age labels (`FRESH < 12 months`, `AGEING 12–24`, `STALE > 24`) are
+data-freshness flags, not validity standards. pH is descriptive only; organic carbon is reported
+without arbitrary good/bad thresholds; N/P/K are never interpreted without the laboratory extraction
+method; no composite soil-health score is produced.
+
+**Market (R18):** `status = UNAVAILABLE`. No synthetic or demo prices. National FAOSTAT producer prices
+and WFP national/urban retail prices may be shown later as *contextual* sources only, never as local
+farm-gate prices.
+
+**History (R19):** multi-year backfill is deferred. Indicators report the coverage they actually have;
+no period is called a climate normal, and anomalies stay `NOT_ASSESSED` until a reference-period
+methodology is approved.
+
+**Consequences:**
+- Every number is traceable to a parameter, unit, source and period
+- Incomplete windows are visibly incomplete rather than silently zero-filled
+- Thresholds live in settings (`INDICATOR_*`), never hardcoded in services
+- Soil and market remain honest placeholders until their sources are approved (Phase 4C)
+
+---
+
+## ADR-024: "Current" Means Latest Available Observation
+
+**Status:** Accepted (2026-11-12) — Phase 4D/4E
+**Implementation:** `apps/indicators/summary.py`, `apps/indicators/views.py`
+
+**Context:** The endpoint is named `/environment/current/`, but the project holds historical and
+near-real-time NASA POWER observations, not live weather. Returning "today" as the window end would
+imply real-time conditions the data cannot support, and would make a farm with old data look current.
+
+**Decision:** The analysis window **ends at the newest stored observation** for the farm and spans
+`window_days` back (default 30, max 366). The response always exposes `window.latest_observation`,
+`window.age_days` and `window.freshness` (`FRESH ≤ 7 d`, `RECENT ≤ 30 d`, `STALE`, `UNKNOWN`), and the
+top-level `limitations` state that indicators are not real-time. With no observations, the window ends
+today and the time-series indicators report `INSUFFICIENT_DATA` rather than inventing values.
+
+The window applies only to the time-series indicators (water, heat); soil uses its sample date and
+market has no observation period.
+
+**Consequences:**
+- Stale data is visible instead of being disguised as current
+- The same response shape works for a farm scanned today or a year ago
+- Clients must read `freshness`/`age_days` rather than assuming "now"
+- A future forecast provider would need a separate, explicitly labelled endpoint
+
+---
+
 ## Phase 0 Decision Log and Open Decisions
 
 **Decision date:** 2026-11-05. This log records documentation-level decisions; proposed choices remain provisional where noted.
@@ -446,6 +564,7 @@ The onboarding draft in `sessionStorage` had the same cross-identity exposure.
 - **Authentication identity:** Phase 0 API contract selects `username` as the registration/login identifier and `email` as contact data. Change only before Phase 2 and update the contract consistently if the team decides otherwise.
 - **Demo region, farmer persona, crop system, local calendar, crop catalog sources/reviewer, LLM provider, and deployment target:** unresolved team decisions; see `PROJECT_STATUS.md` and `DEVELOPMENT_PLAN.md`.
 - **Map library:** resolved 2026-11-07 — Leaflet + Leaflet-Geoman Free with React Leaflet (ADR-017).
+- **Demo region:** resolved 2026-11-09 — Gharbia, Egypt, `EG-GH` (ADR-021).
 - **Backend run location:** resolved 2026-11-07 — Django runs in Docker for GeoDjango (ADR-018), replacing host-local Django from ADR-014.
 - **User model:** resolved 2026-11-07 — the built-in `auth.User` is the single identity model, extended by `accounts.FarmerProfile` (ADR-019); no custom user model or second auth system.
 - **Data completeness/confidence:** Contract returns explicit assessment states and method metadata; numeric values are illustrative only until denominator, weighting, and evidence-quality methods are approved.

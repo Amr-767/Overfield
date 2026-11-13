@@ -1,5 +1,5 @@
 # ==========================================================================
-# AgroSpace Quest — .gitignore
+# Overfield — .gitignore
 # Covers: Python/Django, virtualenvs, React/Node, env files, IDEs, logs,
 #        test/cache artifacts, and large local satellite/geospatial data.
 # NOTE: Package lockfiles and source/docs are intentionally NOT ignored.

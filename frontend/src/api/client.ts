@@ -110,7 +110,7 @@ async function send(
     })
   } catch {
     throw new ApiError(
-      `Cannot reach the AgroSpace Quest API at ${getApiBaseUrl()}. Confirm the backend is running and VITE_API_BASE_URL is correct.`,
+      `Cannot reach the Overfield API at ${getApiBaseUrl()}. Confirm the backend is running and VITE_API_BASE_URL is correct.`,
     )
   }
 

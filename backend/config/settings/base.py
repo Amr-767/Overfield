@@ -1,4 +1,4 @@
-"""Shared Django settings for AgroSpace Quest."""
+"""Shared Django settings for Overfield."""
 
 from __future__ import annotations
 
@@ -72,6 +72,8 @@ INSTALLED_APPS = [
     "apps.farms.apps.FarmsConfig",
     # Phase 3 — provider adapters (models arrive in a later slice).
     "apps.earth_data.apps.EarthDataConfig",
+    # Phase 4 — indicator services (pure calculations, no models).
+    "apps.indicators.apps.IndicatorsConfig",
 ]
 
 MIDDLEWARE = [
@@ -250,5 +252,22 @@ NASA_FETCH_DEFAULT_DAYS = int(env("NASA_FETCH_DEFAULT_DAYS", "365"))
 NASA_FETCH_LATENCY_DAYS = int(env("NASA_FETCH_LATENCY_DAYS", "3"))
 # A RUNNING job older than this is treated as abandoned and retired.
 NASA_FETCH_STALE_JOB_SECONDS = int(env("NASA_FETCH_STALE_JOB_SECONDS", "1800"))
+
+# ---------------------------------------------------------------------------
+# Environmental indicators (Phase 4). Thresholds are generic, configurable
+# exposure bands — never crop-specific agricultural thresholds.
+# ---------------------------------------------------------------------------
+INDICATOR_DEFAULT_WINDOW_DAYS = int(env("INDICATOR_DEFAULT_WINDOW_DAYS", "30"))
+INDICATOR_MAX_WINDOW_DAYS = int(env("INDICATOR_MAX_WINDOW_DAYS", "366"))
+INDICATOR_RAINY_DAY_MM = env("INDICATOR_RAINY_DAY_MM", "1.0")
+INDICATOR_HOT_DAY_C = env("INDICATOR_HOT_DAY_C", "35")
+INDICATOR_VERY_HOT_DAY_C = env("INDICATOR_VERY_HOT_DAY_C", "40")
+INDICATOR_COOL_NIGHT_C = env("INDICATOR_COOL_NIGHT_C", "5")
+# Freshness bands for the newest observation (operational labels only).
+INDICATOR_FRESH_MAX_DAYS = int(env("INDICATOR_FRESH_MAX_DAYS", "7"))
+INDICATOR_RECENT_MAX_DAYS = int(env("INDICATOR_RECENT_MAX_DAYS", "30"))
+# Soil sample age bands (data-freshness labels, not validity standards).
+INDICATOR_SOIL_FRESH_MONTHS = int(env("INDICATOR_SOIL_FRESH_MONTHS", "12"))
+INDICATOR_SOIL_STALE_MONTHS = int(env("INDICATOR_SOIL_STALE_MONTHS", "24"))
 # Upper bound for one API request: keeps NASA calls and queries bounded.
 NASA_FETCH_MAX_RANGE_DAYS = int(env("NASA_FETCH_MAX_RANGE_DAYS", "366"))

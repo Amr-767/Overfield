@@ -1,15 +1,22 @@
-# AgroSpace Quest — Data Provenance Registry
+# Overfield — Data Provenance Registry
 
-**Last updated:** 2026-11-09
-**Status:** Phase 3 — live NASA POWER retrievals recorded (development environment).
+**Last updated:** 2026-11-13
+**Status:** Phase 4 — NASA POWER is the only integrated provider; all other datasets in the NASA Space Apps 2026 guide are evaluated but not integrated.
 
 ---
 
 ## Purpose
 
-This document records every data source used in AgroSpace Quest: the exact product, variables, units, spatial/temporal support, access method, quality flags, processing steps, known limitations, and retrieval dates.
+This document records every data source used in Overfield: the exact product, variables, units, spatial/temporal support, access method, quality flags, processing steps, known limitations, and retrieval dates.
 
 **Every number displayed to a user must be traceable to an entry in this registry.**
+
+**Integration status (2026-11-13).** Only **NASA POWER** is integrated: it has a provider adapter,
+catalogue rows, stored observations, and verified API read-back. GPM IMERG, SMAP, Landsat,
+Sentinel-2, HLS, MODIS/VIIRS, ECOSTRESS, SRTM, GLDAS, ERA5/ERA5-Land, GAEZ v5 and GEDI were evaluated
+and are **not integrated**. U.S.-only resources are not suitable for Gharbia. The full product/version,
+resolution, access and classification record is
+[`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md).
 
 ---
 
@@ -28,17 +35,17 @@ This document records every data source used in AgroSpace Quest: the exact produ
 | **Format** | JSON, CSV |
 | **Authentication** | None required (public API) |
 | **Rate Limits** | Not formally documented; avoid excessive concurrent requests |
-| **Time Standard** | The Daily API defaults to Local Solar Time (LST). The planned convention is UTC and every request must explicitly include `time-standard=UTC`; persist the requested and returned convention with the record. |
+| **Time Standard** | The Daily API defaults to Local Solar Time (LST). The implemented convention is UTC: every request sends `time-standard=UTC` and the client asserts the response echoes UTC; both the requested and returned convention are persisted with the record. |
 
 ### Source classification and parameter provenance
 
-POWER is an API/distribution service over multiple source products, not a single observation type. Meteorological parameters originate from assimilation/reanalysis products including MERRA-2 and GEOS-IT. Solar parameters are inferred from satellite observations using radiative-transfer methods. Set classification per parameter/product after verifying its documented source; do not label all POWER data as direct observations. The examples below are candidate parameters only and remain subject to catalog/unit verification.
+POWER is an API/distribution service over multiple source products, not a single observation type. Meteorological parameters originate from assimilation/reanalysis products including MERRA-2 and GEOS-IT. Solar parameters are inferred from satellite observations using radiative-transfer methods. Classification is set per parameter/product from verified product documentation and the response's `x-data-sources` header; POWER data is never labelled as a direct observation. The parameters below are the implemented set.
 
 Official references: [POWER meteorological sources](https://power.larc.nasa.gov/docs/methodology/data/sources_meteorology/), [POWER data sources FAQ](https://power.larc.nasa.gov/docs/faqs/data/), [POWER methodology](https://power.larc.nasa.gov/docs/methodology/).
 
-### MVP Variables (to verify against current parameter catalog)
+### Implemented Variables (verified 2026-11-09)
 
-| Parameter Code | Meaning | Unit | AgroSpace Use |
+| Parameter Code | Meaning | Unit | Overfield Use |
 |---|---|---|---|
 | `T2M` | Temperature at 2 m | °C | Daily temperature context |
 | `T2M_MAX` | Maximum 2-m temperature | °C | Heat exposure summaries |
@@ -53,15 +60,15 @@ Official references: [POWER meteorological sources](https://power.larc.nasa.gov/
 - **NOT a weather forecast.** POWER provides historical and near-real-time data. Future projections require a separate forecast provider.
 - **NOT a field weather station.** Values represent gridded model/reanalysis estimates for a grid cell, not an on-farm sensor.
 - **Latency exists.** Recent days may not have data available yet.
-- Exact parameter availability, units, and communities should be re-verified against the [POWER Parameter Catalog](https://power.larc.nasa.gov/docs/methodology/) before implementation.
+- Parameter availability, units and community were verified against the live API on 2026-11-09; re-verify if the requested parameter set changes.
 
-### Processing Steps (planned)
+### Processing Steps (implemented in Phase 3B–3E)
 
-1. Request daily data for farm centroid coordinates and specified date range with explicit `time-standard=UTC`
-2. Parse JSON response; validate parameter keys and units
-3. Handle missing values and fill/sentinel values per POWER documentation
-4. Store as `EnvironmentalObservation` records with source metadata
-5. Aggregate to seasonal summaries in the indicators layer
+1. Request daily data for the farm's representative point and specified date range with explicit `time-standard=UTC`
+2. Parse JSON response; validate parameter keys, units, and echoed time standard
+3. Handle missing values and fill/sentinel values per POWER documentation (`-999`/`null` → `None`)
+4. Store as `EnvironmentalObservation` records with source metadata and provenance
+5. Expose daily values through the REST API; Phase 4 indicators aggregate on demand (no snapshot table)
 
 ### Verified request/response facts (2026-11-09, API `v2.10.3`)
 
@@ -179,7 +186,7 @@ endpoint; they are omitted here to keep this entry readable.
 
 ---
 
-## 2. NASA GPM IMERG — Precipitation Estimates (MVP Candidate #2)
+## 2. NASA GPM IMERG — Precipitation Estimates (Evaluated, Not Integrated)
 
 | Field | Value |
 |---|---|
@@ -192,10 +199,11 @@ endpoint; they are omitted here to keep this entry readable.
 | **Processing Runs** | Early (low latency), Late (moderate latency), Final (gauge-adjusted, best for research) |
 | **Authentication** | May require NASA Earthdata Login for some access paths |
 | **Format** | HDF5, NetCDF, GeoTIFF depending on access method |
+| **Integration status** | **Not integrated** — evaluated for Phase 5 (regional cross-check only) |
 
-### MVP Variables
+### Candidate Variables
 
-| Variable | Unit | AgroSpace Use |
+| Variable | Unit | Overfield Use |
 |---|---|---|
 | Precipitation rate / accumulation | mm/hr or mm | Rainfall totals, dry-spell counts, seasonal anomalies, heavy-rain events |
 
@@ -203,84 +211,91 @@ endpoint; they are omitted here to keep this entry readable.
 
 - Satellite precipitation estimates, not rain gauge measurements
 - Biases possible in mountainous terrain, coastlines, intense convection
-- Early/Late runs are less accurate than Final
+- Early/Late runs are provisional; Final is gauge-adjusted but lags ~3.5 months
 - Must convert rates to accumulations correctly (rate × time interval)
-- ~10 km pixel may cover many farms; not a field-level measurement
+- 0.1° (≈11 km) pixel may cover many farms; not a field-level measurement
+- Rainfall is not irrigation-water availability (no canal, groundwater, storage or efficiency data)
 
-### Access Method (to research)
+### Access Method
 
-- Direct download from GES DISC or Giovanni
-- AppEEARS for point/area subsets (verify GPM product availability)
+- GES DISC / NASA Earthdata (HDF5), or Google Earth Engine
 - NASA Earthdata Login required for most access paths
 
 ### Integration Priority
 
-**P1 / optional Phase 3 stretch goal, after POWER.** Only integrate if the team can confidently retrieve, aggregate, and quality-check the data within the available time. NASA POWER precipitation (`PRECTOTCORR`) can serve as the initial precipitation context; it is itself source-classified from its exact POWER parameter provenance.
+**Deferred to Phase 5 (P2).** NASA POWER precipitation (`PRECTOTCORR`) remains the Phase 4 source.
+IMERG is a regional cross-check candidate only; it must not be blended into WATER without a documented
+source-precedence and run-type/version contract.
 
 ### Retrieval Date
 
-Not yet retrieved.
+Not retrieved. No adapter, catalogue rows, or observations exist.
 
 ---
 
-## 3. NASA SMAP — Soil Moisture Context (P1 Scope)
+## 3. NASA SMAP — Soil Moisture Context (Evaluated, Not Integrated)
 
 | Field | Value |
 |---|---|
 | **Provider** | NASA / NSIDC DAAC |
-| **Product** | SMAP Enhanced L3 Radiometer Global Daily 9 km (SPL3SMP_E) |
-| **Version** | Version 6 (verify current version) |
-| **Documentation** | [NSIDC SMAP overview](https://nsidc.org/data/smap), [SPL3SMP_E V6](https://nsidc.org/data/spl3smp_e/versions/6) |
-| **Spatial Resolution** | 9 km EASE-Grid 2.0 |
-| **Temporal Resolution** | Daily (AM/PM overpasses) |
-| **Variable** | Surface soil moisture (volumetric water content, m³/m³) |
+| **Products** | L3 `SPL3SMP` v9 (36 km, daily); L4 `SPL4SMGP` (9 km, 3-hourly, model assimilation) |
+| **Documentation** | [NSIDC SMAP overview](https://nsidc.org/data/smap), [SPL3SMP v9](https://nsidc.org/data/spl3smp) |
+| **Spatial Resolution** | 36 km (L3) / 9 km (L4) EASE-Grid 2.0 |
+| **Temporal Resolution** | Daily (L3) / 3-hourly (L4) |
+| **Variable** | Surface soil moisture (volumetric water content, m³/m³); L4 adds surface and root-zone moisture |
 | **Authentication** | NASA Earthdata Login required |
+| **Integration status** | **Not integrated** — Phase 5 candidate (regional context only) |
 
 ### Important Limitations
 
-- 9 km pixel can contain many farms and land-cover types
-- **NOT field-level root-zone moisture** — it is a surface estimate
-- L4 products are model-assimilation, not direct retrieval
+- 9–36 km pixels contain many farms and land-cover types
+- L3 is a **surface** estimate (~top 5 cm); L4 adds model-assimilated root-zone moisture
+- L4 is model assimilation, not direct retrieval
 - Vegetation, frozen ground, water bodies affect the signal
+- **Not soil composition** — it does not measure texture, pH, organic carbon, N/P/K, salinity or nutrients
 - Cannot prove individual farmer irrigation from SMAP alone
 
 ### Integration Priority
 
-**P1 scope.** Include only after NASA POWER is working and if Earthdata authentication is set up.
+**Deferred to Phase 5 (P2).** Regional moisture context only. The Phase 4 SOIL indicator remains based on
+`FarmerContext` measurements and must never substitute SMAP moisture for a laboratory soil test.
 
 ### Retrieval Date
 
-Not yet retrieved.
+Not retrieved. No adapter, catalogue rows, or observations exist.
 
 ---
 
-## 4. NASA ECOSTRESS — Thermal/ET Context (P1 Scope)
+## 4. NASA ECOSTRESS — Thermal/ET Context (Evaluated, Not Integrated)
 
 | Field | Value |
 |---|---|
 | **Provider** | NASA / LP DAAC |
-| **Product** | ECOSTRESS LST&E, ET, ESI products |
+| **Products** | L2G LST&E v002; ECO3ET / ECO3ESI products (verify current versions before implementation) |
 | **Documentation** | [Product spec table](https://ecostress.jpl.nasa.gov/data/product-specification-documents-table), [Data resources](https://nasa.github.io/ECOSTRESS-Data-Resources/) |
-| **Spatial Resolution** | Commonly tens of meters (varies by product — verify specific product) |
-| **Temporal Resolution** | Irregular (ISS orbit-dependent), not daily guaranteed |
+| **Spatial Resolution** | 70 m for L2G LST&E (product-specific for ET/ESI) |
+| **Temporal Resolution** | Irregular (ISS orbit-dependent); ~1–5 day average at varying times, not daily |
 | **Authentication** | NASA Earthdata Login required |
 | **Access Method** | AppEEARS for area/point subsetting |
+| **Integration status** | **Not integrated** — Phase 5 candidate (opportunistic) |
 
 ### Important Limitations
 
-- Land-surface temperature ≠ 2-m air temperature
-- Irregular revisit — data gaps are normal
+- Land-surface temperature ≠ 2-m air temperature; no direct comparison with `T2M_MAX` thresholds
+- Irregular revisit — data gaps are normal; acquisitions are not guaranteed for a given farm
 - Cloud cover eliminates observations
+- ET/ESI are model-derived estimates, not direct water-use measurements
 - Product-specific quality flags and units must be applied
 - Missing overpass ≠ zero stress
 
 ### Integration Priority
 
-**P1 scope.** Only integrate when LST/ET adds demonstrable value and valid coverage exists for the demo region.
+**Deferred to Phase 5 (P4).** Opportunistic only, when a valid acquisition intersects the farm. Missing
+data must not block the app or be replaced with a synthetic value.
 
 ### Retrieval Date
 
-Not yet retrieved.
+Not retrieved. No adapter, catalogue rows, or observations exist.
 
 ---
 
@@ -300,19 +315,22 @@ Not yet retrieved.
 
 | Field | Value |
 |---|---|
-| **Primary source** | Farmer-entered soil test results |
-| **Fallback** | SoilGrids 250m modeled estimates (clearly labeled as modeled, not measured) |
+| **Primary source** | Farmer-entered soil test results (`FarmerContext`) |
+| **Evaluated fallback** | SoilGrids 250 m modelled estimates — **not integrated**; Phase 4 SOIL uses `FarmerContext` only |
 | **SoilGrids docs** | [ISRIC SoilGrids](https://isric.org/explore/soilgrids) |
 | **Required fields** | Texture class, pH, organic carbon, sampling depth, method, date |
-| **Limitation** | SoilGrids values are spatial predictions with prediction intervals — not direct field samples |
+| **Limitation** | SoilGrids values are spatial predictions with prediction intervals — not direct field samples, and no fallback value is fabricated when a farmer has no soil data |
 
 ### 5.3 Market Prices
 
 | Field | Value |
 |---|---|
-| **Status** | NOT AVAILABLE for MVP |
-| **Approach** | Accept farmer-entered expected prices; label as "farmer estimate" |
-| **Future** | Official market statistics, cooperative data, or partner feeds |
+| **Status** | **UNAVAILABLE** — no verified local farm-gate source (decision R18) |
+| **Indicator behaviour** | `MARKET` returns `status: UNAVAILABLE`, no measurements, no synthetic or demo prices |
+| **Verified national references (context only, NOT ingested)** | FAOSTAT producer prices, Egypt — annual 1991–2025, `LCU/tonne`, `SLC/tonne`, `USD/tonne`, PPI (2014-2016=100); WFP Egypt food prices — 2010-08-15 → 2026-09-15, EGP retail, national average + Cairo, consumer units |
+| **Access notes (verified 2026-11-09)** | FAOSTAT API `fenixservices.fao.org/faostat/api/v1/…` returned **521**; `faostatservices.fao.org` returned **401**; FAOSTAT bulk zips work (`Prices_E_All_Data_(Normalized).zip`, 11.7 MB). HDX API works; both Egypt datasets are CC BY-IGO |
+| **Why not used** | National aggregates are not local farm-gate prices; consumer units are not per-tonne; annual producer prices are lagged; the demo region was only confirmed in Phase 4A |
+| **Future** | A team-approved regional/cooperative source with documented licence and unit semantics |
 
 ---
 
@@ -343,17 +361,31 @@ Not yet retrieved.
 
 The `data_category` is assigned at parameter/product level, alongside the exact dataset, product/version, parameter, and derivation. GPM IMERG is a satellite-derived precipitation retrieval product rather than a ground rain-gauge observation. A direct laboratory test can be `GROUND_MEASURED`; when entered by a farmer, retain `USER_PROVIDED` as the record provenance and identify the claimed measurement method separately.
 
-## 8. Additional Datasets Referenced by the Master Handoff (P2 / Not Integrated)
+## 8. Evaluated Datasets Not Integrated (NASA Space Apps 2026 Guide)
 
-The entries below document possible future use only. Mention here does not mean the source is integrated or selected for the MVP. Verify exact collection, version, native support, access, units, and quality rules before implementation.
+The entries below were reviewed for coverage, resolution, access and scientific role. **None is
+integrated.** Mention here does not mean the source is selected for the MVP. Full product/version,
+spatial/temporal resolution, access method and classification are in
+[`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md).
 
-| Dataset/product family | Intended use | Native support caveat | Limitation and deferral | Official documentation |
+| Dataset/product family | Reviewed role | Native support caveat | Decision | Official documentation |
 |---|---|---|---|---|
-| Landsat surface reflectance / vegetation indices | Field-scale vegetation dynamics where field size and valid pixels permit | Product and collection dependent; commonly tens-of-meters pixels; cloud and revisit gaps matter | P2; requires collection/QA selection, compositing, and area coverage checks; greenness does not prove crop identity or farmer action | [USGS Landsat missions](https://www.usgs.gov/landsat-missions) |
-| MODIS MOD13 vegetation indices | Regional/seasonal vegetation pattern context | MOD13Q1 is a 16-day, 250 m product (collection/version must be verified) | P2; often too coarse for small farms; compositing and QA required | [NASA MODIS vegetation indices](https://modis.gsfc.nasa.gov/data/dataprod/mod13.php) |
-| GRACE / GRACE-FO | Large-scale groundwater/total-water-storage context | Regional mascon or gridded support, far coarser than a farm | P2; cannot support field-level water claims | [NASA GRACE](https://grace.jpl.nasa.gov/data/get-data/) |
-| SRTM elevation | Terrain, slope, and relative runoff/erosion context | DEM pixel support and void/processing characteristics vary by product | P2; slope alone does not estimate erosion rate | [NASA SRTM](https://www.earthdata.nasa.gov/data/instruments/srtm) |
-| GEDI | Sampled canopy structure/biomass context where relevant | Footprint samples, not wall-to-wall coverage | P2; sampling gaps and product interpretation make it unsuitable as a universal field layer | [NASA GEDI](https://gedi.umd.edu/data/) |
+| Landsat Collection 2 Level-2 | Field/zone vegetation and long baseline | 30 m; 16-day per satellite; cloud/QA masking required | Phase 5 candidate (P1); not integrated | [USGS Landsat](https://www.usgs.gov/landsat-missions/landsat-collection-2-surface-reflectance) |
+| Sentinel-2 MSI Level-2A | Field/zone vegetation; best small-field optical option | 10/20/60 m; 5-day; cloud/`SCL` masking required | Phase 5 candidate (P1); not integrated | [ESA Sentinel-2](https://sentinel.esa.int/web/sentinel/missions/sentinel-2) |
+| Harmonized Landsat-Sentinel (HLS) | Harmonized 30 m vegetation time series | ~2–3 day combined; cloud/QA masking; data volume | Phase 5 candidate; alternative to separate S2/Landsat | [HLS HLSL30](https://lpdaac.usgs.gov/products/hlsl30v002/) |
+| MODIS / VIIRS vegetation indices | Regional/seasonal vegetation context | 250–500 m; 16-day composites; QA required | Phase 5 candidate (regional); not integrated | [MODIS MOD13](https://modis.gsfc.nasa.gov/data/dataprod/mod13.php) |
+| SRTM elevation | Terrain, slope, runoff/erosion screening | 30/90 m; static 2000; voids; flat Delta limits value | Later phase; not integrated | [NASA SRTM](https://www.earthdata.nasa.gov/data/instruments/srtm) |
+| GLDAS-2.1 | Regional land-surface/climate baseline | 0.25°; model/assimilation; coarse | Later phase; not integrated | [GLDAS](https://ldas.gsfc.nasa.gov/gldas) |
+| ERA5 / ERA5-Land | Historical climate/ET0 baseline | 0.25° / 0.1°; reanalysis; coarse | Later phase; not integrated | [ECMWF ERA5](https://www.ecmwf.int/en/forecasts/dataset/ecmwf-reanalysis-v5) |
+| GAEZ v5 | Crop-suitability prior | 30 arc-sec key outputs; model-derived; not current condition | Phase 5 candidate (P3); not integrated | [FAO GAEZ](https://www.fao.org/gaez/en) |
+| GEDI | Sampled canopy/biomass context | 25 m footprints, not wall-to-wall; sparse sampling | Not suitable for annual-crop monitoring; not integrated | [NASA GEDI](https://gedi.umd.edu/data/products/) |
+| GRACE / GRACE-FO | Large-scale groundwater/total-water-storage context | Regional support, far coarser than a farm | Out of scope for the 2026 audit; not integrated | [NASA GRACE](https://grace.jpl.nasa.gov/data/get-data/) |
+| USDA Ag Data Commons | Repository of datasets with varying scope | Coverage is dataset-specific; not a single product | Requires dataset-by-dataset validation; not integrated | [Ag Data Commons](https://agdatacommons.nal.usda.gov/) |
+
+**U.S.-specific resources are not suitable for Gharbia:** Web Soil Survey, SSURGO/STATSGO2, Cropland Data
+Layer, PRISM, NAIP, NLCD, CoCoRaHS, NWIS, USDA AMS Market News, NASS QuickStats, OpenET and LANDFIRE.
+They must not be integrated as demo or fallback data. In particular, USDA market sources cannot supply
+Egyptian farm-gate prices, and U.S. soil surveys cannot supply Egyptian soil composition.
 
 ## 9. Data Completeness and Confidence
 
@@ -376,7 +408,45 @@ These are separate concepts. `data_completeness` describes required input/data c
 
 ---
 
-## 11. References
+## 11. Derived Indicators (Phase 4)
+
+Indicators are **derived** from the sources above; they are not provider products. Each carries a
+stable methodology identifier and version in the API response.
+
+| Indicator | Methodology | Inputs | Derived from |
+|---|---|---|---|
+| WATER | `water.rainfall.v1` (1.0.0) | `PRECTOTCORR` (NASA POWER, MERRA-2) + farmer-reported irrigation context | daily totals over covered days |
+| HEAT | `heat.exposure.v1` (1.0.0) | `T2M`, `T2M_MAX`, `T2M_MIN` (NASA POWER, MERRA-2) | daily means/maxima/minima and threshold counts |
+| SOIL | `soil.properties.v1` (1.0.0) | `FarmerContext` soil fields (laboratory or farmer-reported) | per-property reporting, no composite score |
+| MARKET | `market.unavailable.v1` (1.0.0) | none | `UNAVAILABLE` by decision R18 |
+
+### Source-type distinction
+
+| Type | Example in this project | How it is labelled |
+|---|---|---|
+| Provider environmental observation | NASA POWER `T2M`, `PRECTOTCORR` | `source: NASA_POWER`, `data_category: REANALYSIS_OR_ASSIMILATION_ESTIMATE` |
+| Farmer-reported context | irrigation availability/type/reliability, farmer-entered soil values | `quality: FARMER_REPORTED` |
+| Laboratory-tested measurement | soil pH, organic carbon, N/P/K from a lab | `quality: LAB_TEST` (with `lab_name`, `sample_date`, `sampling_method`) |
+| Derived indicator | water/heat/soil summaries | `methodology.id` + `version` |
+| Unavailable external information | local market prices | `status: UNAVAILABLE`, no measurements |
+
+### What is deliberately not derived
+
+- **No soil moisture, plant-available water, ET deficit, irrigation demand or water stress** — the
+  required datasets (SMAP soil moisture, reference ET, irrigation records) are not integrated.
+- **No crop-specific heat stress or frost occurrence** — thresholds are generic air-temperature bands;
+  crop and growth-stage rules belong to Phase 5.
+- **No market prices or trends** — no verified local farm-gate source exists.
+- **No climate normals or anomalies** — multi-year backfill is deferred (R19); no period is called a
+  normal.
+
+### Thresholds
+
+All indicator thresholds are **project defaults**, configurable via `INDICATOR_*` environment
+variables, and are **not** universal agricultural standards. The full list, with meanings, is in
+[`ENVIRONMENTAL_INDICATORS.md`](ENVIRONMENTAL_INDICATORS.md) §8.
+
+## 12. References
 
 1. NASA POWER Daily API — https://power.larc.nasa.gov/docs/services/api/temporal/daily/
 2. NASA POWER Temporal APIs — https://power.larc.nasa.gov/docs/services/api/temporal/
@@ -392,4 +462,5 @@ These are separate concepts. `data_completeness` describes required input/data c
 12. NASA POWER Meteorological Data Sources — https://power.larc.nasa.gov/docs/methodology/data/sources_meteorology/
 13. NASA POWER Data Sources FAQ — https://power.larc.nasa.gov/docs/faqs/data/
 14. NASA POWER Methodology — https://power.larc.nasa.gov/docs/methodology/
+15. Full NASA Space Apps 2026 dataset evaluation — [`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md)
 

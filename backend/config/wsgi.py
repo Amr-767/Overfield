@@ -1,4 +1,4 @@
-"""WSGI config for AgroSpace Quest."""
+"""WSGI config for Overfield."""
 
 import os
 

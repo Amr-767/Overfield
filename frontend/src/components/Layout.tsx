@@ -19,7 +19,8 @@ export function Layout({ children, wide = false }: LayoutProps) {
             <span className="brand-mark" aria-hidden="true" />
             <div>
               <p className="brand-kicker">NASA Space Apps</p>
-              <h1 className="brand-title">AgroSpace Quest</h1>
+              <h1 className="brand-title">Overfield</h1>
+              <p className="brand-tagline">Explore Beyond the Field.</p>
             </div>
           </Link>
 
@@ -56,7 +57,7 @@ export function Layout({ children, wide = false }: LayoutProps) {
       <main className="app-main">{children}</main>
 
       <footer className="app-footer">
-        <p>AgroSpace Quest — farm onboarding. Field boundaries stay private to your account.</p>
+        <p>Overfield — Explore Beyond the Field. Field boundaries stay private to your account.</p>
       </footer>
     </div>
   )

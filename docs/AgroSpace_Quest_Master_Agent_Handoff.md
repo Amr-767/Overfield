@@ -1,8 +1,8 @@
-# AGROSPACE QUEST — MASTER AI-AGENT HANDOFF
+# Historical Master Agent Handoff — Former Project Name: AgroSpace Quest
 ## Integrated Project Brief, Backend Architecture, NASA Data Deep Dive, Agronomy Guide, and Build Playbook
 
 **Challenge:** NASA Space Apps Challenge 2026 — *Field Shift: Adapting Farms with NASA Data*  
-**Project/product name:** AgroSpace Quest: The Elemental Balance  
+**Historical project/product name at time of writing:** AgroSpace Quest: The Elemental Balance
 **Document type:** Single attachment for an AI research, architecture, or coding agent  
 **Primary stack:** Django + Django REST Framework + PostgreSQL/PostGIS + React  
 **Supporting stack:** Python geospatial analysis, Celery/Redis for background processing, optional grounded AI agents  
@@ -12,7 +12,7 @@
 
 # READ THIS FIRST — INSTRUCTIONS FOR THE AI AGENT
 
-You are receiving this file as the shared project context and technical reference for AgroSpace Quest. Read the entire document before proposing an architecture, writing code, changing a repository, or generating a final technical specification. Do not rely only on the first few sections.
+This historical file was originally written as shared project context and technical reference for AgroSpace Quest, the former project name. It is retained for development history; current identity and implementation status are maintained in the Overfield README and current project documents. Read the entire document before proposing an architecture, writing code, changing a repository, or generating a final technical specification. Do not rely only on the first few sections.
 
 ## A. Your role
 
@@ -29,7 +29,7 @@ The product must compare at least three strategies, including the farmer's exist
 ## C. Naming and terminology
 
 - **FIELD SHIFT** is the official NASA challenge name.
-- **AgroSpace Quest: The Elemental Balance** is the team's current product/experience name.
+- **AgroSpace Quest: The Elemental Balance** was the former product/experience name when this historical handoff was written.
 - In the 2026 challenge wording, **SI means Super Intelligence**, not spatial intelligence. NASA describes SI as an umbrella for AI-enabled capabilities, including machine learning, deep learning, language systems, decision support, foundation models, and agentic systems. Spatial analysis, statistics, and data fusion support the solution, but they are not themselves the definition of SI.
 - The four “Elemental Gauges” are user-interface indicators. They must not be presented as direct scientific measurements unless the underlying variable really is measured that way.
 
@@ -157,7 +157,7 @@ These appendices are intentionally retained in full to avoid losing useful detai
 
 > **Source material:** `AgroSpace_Quest_Backend_Technical_Specification.md`. Content retained and nested into this master handoff.
 
-## AgroSpace Quest: The Elemental Balance
+## Former Project Identity (Historical): AgroSpace Quest: The Elemental Balance
 ### Backend, API, NASA Data, Database, and System Architecture
 
 **Document type:** Revised universal technical specification  

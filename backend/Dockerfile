@@ -1,4 +1,4 @@
-# AgroSpace Quest — Django backend (Phase 2 Step 0)
+# Overfield — Django backend (Phase 2 Step 0)
 #
 # GeoDjango needs native GEOS, GDAL and PROJ libraries that are not practical to
 # install on a Windows host, so Django runs inside Docker (ADR-018).

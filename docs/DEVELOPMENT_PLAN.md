@@ -1,7 +1,7 @@
-# AgroSpace Quest — Development Plan
+# Overfield — Development Plan
 
-**Last updated:** 2026-11-07
-**Team size:** 3 persons  
+**Last updated:** 2026-11-13
+**Team size:** 2 persons
 **Stack:** Django + DRF + GeoDjango (Dockerized) + PostgreSQL/PostGIS + React (Vite) + Leaflet/Leaflet-Geoman + Celery/Redis  
 **Challenge:** NASA Space Apps 2026 — Field Shift: Adapting Farms with NASA Data
 
@@ -136,7 +136,7 @@ the prototype tile source with configurable URL and visible attribution.
 ### Phase 3 — NASA Data Providers and Asynchronous Ingestion
 **Model:** Opus | **Code changes:** Provider adapters, Celery tasks, data models
 
-**Status:** ✅ COMPLETE and reviewed (2026-11-09) — slices 3A–3E plus closeout (provenance, review, throttle assessment) on `phase/3-nasa-integration`; awaiting Git checkpoint.
+**Status:** ✅ COMPLETE, reviewed and merged into `develop` (`37db0b3`, 2026-11-09) — slices 3A–3E plus closeout (provenance, review, throttle assessment).
 
 | Slice | Scope | Status |
 |---|---|---|
@@ -155,7 +155,7 @@ in `.env.example` (NASA POWER needs no API key).
 **Tasks:**
 1. Research and verify NASA POWER API (current endpoint, parameters, units, format)
 2. Implement NASA POWER adapter with provider interface
-3. Consider GPM IMERG only as optional P1/Phase 3 stretch work after POWER is working
+3. Evaluate GPM IMERG as a possible second precipitation source; **deferred** — not implemented in Phase 3 or 4 (see `HACKATHON_DATA_SOURCE_MATRIX.md`)
 4. `DatasetSource` and `DataFetchJob` models
 5. `EnvironmentalObservation` normalized storage model
 6. Celery tasks: fetch → normalize → store, with states (PENDING/RUNNING/SUCCEEDED/PARTIAL/FAILED)
@@ -179,17 +179,18 @@ in `.env.example` (NASA POWER needs no API key).
 ---
 
 ### Phase 4 — Environmental Indicators and Data Fusion
-**Model:** Opus for design, Flash for implementation | **Code changes:** Indicator services, snapshot models, APIs
+**Model:** Opus for design, Flash for implementation | **Code changes:** Indicator services and summary API (no snapshot table, no migrations)
 
-**Status:** ▶️ STARTED (2026-11-09) — branch `phase/4-environmental-engine` created from the merged
-`develop`. Setup only: **no Phase 4 feature code yet.**
+**Status:** ✅ COMPLETE (2026-11-12) — 4A–4E delivered on `phase/4-environmental-engine`. ✅ 4F documentation alignment complete (2026-11-13). Uncommitted; awaiting review/merge.
 
 | Slice | Scope | Status |
 |---|---|---|
-| **4A** | Indicator definitions from verified data: seasonal mean/min/max temperature, precipitation total, dry-spell run length, quality/freshness rules; record formulas, units and data gaps in `DATA_PROVENANCE.md`/`API_CONTRACTS.md` | ⏳ Next |
-| **4B** | `indicators` app: pure aggregation services over stored `EnvironmentalObservation` rows (no provider calls), explicit `NOT_ASSESSED`/`MISSING` handling, no imputation | ⏳ |
-| **4C** | `FarmEnvironmentalSnapshot` persistence + `GET /api/v1/farms/{id}/environment/current/` with per-indicator unit, period, source/product/parameter, spatial support, temporal convention and quality label | ⏳ |
-| **4D** | Fixture-based aggregation tests (known series → known results), API contract tests, missing-data and partial-window cases | ⏳ |
+| **4A** | Indicator methodology audit + approved decisions R13–R20 (region `EG-GH`, no scores, water/heat/soil/market rules, no backfill, no snapshots) | ✅ Complete (2026-11-09) |
+| **4B** | `indicators` app foundation: shared contract, coverage/confidence/freshness helpers, water + heat services over stored observations, 55 tests | ✅ Complete (2026-11-09) |
+| **4C** | Soil (per-property, provenance, age labels, no composite score) and market (`UNAVAILABLE`, contextual sources only) services + 30 tests | ✅ Complete (2026-11-09) |
+| **4D** | `GET /api/v1/farms/{id}/environment/current/` summary endpoint (owner-scoped 404), all four indicators, coverage/freshness/limitations, 6-query budget | ✅ Complete (2026-11-09) |
+| **4E** | `ENVIRONMENTAL_INDICATORS.md`, methodology ids, provenance §11, contract examples, 111 indicator tests | ✅ Complete (2026-11-12) |
+| **4F** | NASA Space Apps 2026 data-source alignment: `HACKATHON_DATA_SOURCE_MATRIX.md`, integration-status corrections, scientific distinctions, nullable-period contract | ✅ Complete (2026-11-13) |
 
 **Prerequisites:** a valid Phase 3 scan for the farm (observations exist); the demonstration region
 decision (Risk R13) is still open and affects only interpretation/copy, not the maths.
@@ -201,7 +202,7 @@ decision (Risk R13) is still open and affects only interpretation/copy, not the 
 4. Data quality/freshness status: available, stale, partial, missing, low_quality
 5. Source-aware distinction among remote-sensing retrieval, reanalysis/assimilation estimate, modelled estimate, ground-measured, user-provided, derived, and scenario outputs
 6. Missing-data handling (never replace with zero or invent)
-7. `FarmEnvironmentalSnapshot` response model
+7. Summary response contract (computed on demand — **no `FarmEnvironmentalSnapshot` table**; decision R16)
 8. Summary API: `GET /farms/{id}/environment/current/`
 9. Unit conversion and validation
 
@@ -220,7 +221,7 @@ decision (Risk R13) is still open and affects only interpretation/copy, not the 
 
 **Tasks:**
 1. `Crop`, `CropSeasonRule`, `CropSuitabilityRule`, `CropWaterProfile`, `CropRotationRule` models
-2. Person C (Agronomy/Simulation/UX) sources the regional crop catalog; minimum crop set, seasons, and traits are determined after the team selects region/persona/system. Acceptable sources are regional extension/agriculture authorities, FAO references where applicable, or peer-reviewed literature. Do not use an LLM as a source for calendars or coefficients. Label unreviewed demo entries as needing expert validation.
+2. The team sources the regional crop catalog; minimum crop set, seasons, and traits are determined after selecting the farmer persona and crop system. Acceptable sources are regional extension/agriculture authorities, FAO references where applicable, or peer-reviewed literature. Do not use an LLM as a source for calendars or coefficients. Label unreviewed demo entries as needing expert validation.
 3. Recommendation pipeline: validate → hard constraints → soft preferences → generate sequences → evaluate → rank → explain
 4. Three strategy types: BASELINE, WATER_EFFICIENT, SOIL_REGENERATION
 5. Deterministic, explainable scoring with configurable weights
@@ -357,9 +358,9 @@ The optional 80% review gate is deferred to P1. If brought into scope, first def
 
 | Feature | Notes |
 |---|---|
-| Additional NASA dataset (GPM IMERG) | Phase 3 stretch |
+| Additional NASA dataset (GPM IMERG) | **Phase 5 candidate**, not a Phase 3 stretch. V07B is feasible for Gharbia at 0.1°, but implementation needs an approved schema extension for product run/version, valid-pixel coverage, aggregation method and QA reason (see `HACKATHON_DATA_SOURCE_MATRIX.md` §8). |
 | Polygon-based zonal statistics | Requires raster processing |
-| SMAP/ECOSTRESS context | Needs Earthdata auth |
+| SMAP/ECOSTRESS context | Needs Earthdata auth; regional/opportunistic only |
 | Seasonal scenario sliders | Climate perturbation UI |
 | PDF/CSV report export | For agricultural advisor |
 | Points/badges, demo leaderboard, and reward panel | Optional engagement layer after core P0 journey |
@@ -367,19 +368,21 @@ The optional 80% review gate is deferred to P1. If brought into scope, first def
 | AI explanation assistant (grounded) | RAG + read-only tools |
 | Arabic/English localization | If demo region is Egypt |
 
-**Priority note:** POWER is the first planned integration. GPM is an optional P1 stretch item after POWER; it is not a P0 dependency. Other secondary sources remain optional unless the team documents a compelling challenge need and a feasible verified workflow.
+**Priority note:** POWER is the only integrated source and remains the P0 dependency. GPM IMERG, SMAP, Landsat/Sentinel-2/HLS, MODIS/VIIRS, ECOSTRESS, GAEZ, SRTM, GLDAS and ERA5 are **evaluated but not integrated**; U.S.-only resources are out of scope for Gharbia. No secondary source may be added without a documented aggregation method and a source-precedence rule.
 
 ### Phase 0 Open Decisions (owners)
 
 | Decision | Owner | Status |
 |---|---|---|
-| Demo region and stable `region_code` | Team | Open; Gharbia/Nile Delta is only a candidate |
-| Farmer persona, farm scale, crop system, and calendar season set | Team + Person C | Open |
-| Crop catalog minimum entries and source review | Person C, with local agronomy reviewer sought by team | Open; do not invent crop facts |
-| Authentication identity | Team + Person A | Phase 0 contract selects username; reopen only if the team changes it before Phase 2 |
-| Map library | Person B | ✅ Resolved 2026-11-07: Leaflet + Leaflet-Geoman Free (ADR-017) |
-| Docker Compose vs exact local versions/setup | Team + Person A/B | ✅ Resolved 2026-11-07: Django runs in Compose for GeoDjango (ADR-018) |
-| NASA POWER parameter/source mapping and selected variables | Person A + Person C | Verify official product metadata before implementation |
+| Demo region and stable `region_code` | Team | ✅ Resolved 2026-11-09: Gharbia, Egypt — `EG-GH` (ADR-021) |
+| Farmer persona, farm scale, crop system, and calendar season set | Team | Open |
+| Crop catalog minimum entries and source review | Team, with local agronomy reviewer sought | Open; do not invent crop facts |
+| Authentication identity | Amr + team | ✅ Resolved: username login on Django user + `FarmerProfile` (ADR-019) |
+| Map library | Haneen | ✅ Resolved 2026-11-07: Leaflet + Leaflet-Geoman Free (ADR-017) |
+| Docker Compose vs exact local versions/setup | Amr + Haneen | ✅ Resolved 2026-11-07: Django runs in Compose for GeoDjango (ADR-018) |
+| NASA POWER parameter/source mapping and selected variables | Amr + team | ✅ Resolved 2026-11-09: 7 AG parameters verified against the live API |
+| Second precipitation source (GPM IMERG) | Team | Open; blocked on an approved observation-schema extension |
+| Egyptian farm-gate market prices | Team | Open; MARKET stays `UNAVAILABLE` (R18) |
 | LLM provider, if P1 assistant is retained | Backend lead | Deferred |
 | Deployment target | Team | Open |
 | Dedicated report export and 80% plan gate | Team | P1 deferred; decide only if demo need justifies |
@@ -399,19 +402,16 @@ The optional 80% review gate is deferred to P1. If brought into scope, first def
 
 ---
 
-## Recommended Team Division
+## Project Team
 
-| Team Member | Role | Primary Phases | Responsibilities |
-|---|---|---|---|
-| **Person A** — Backend/Data Lead | Django + DRF + NASA integration | 1, 2, 3, 4, 5-backend, 6-backend, 8-backend | Models, APIs, NASA adapters, Celery tasks, data normalization, recommendation engine, simulation engine |
-| **Person B** — Frontend/GIS Lead | React + Maps + Dashboard | 1-frontend, 2-frontend, 7, 8-frontend | React app, map drawing, forms, strategy cards, gauges, timeline, responsive design |
-| **Person C** — Agronomy/Simulation/UX | Crop knowledge + scoring + narrative | 5-agronomy, 6-scenarios, 7-UX, 9-audit | Crop catalog research, scoring configuration, scenario assumptions, farmer-facing explanations, challenge alignment |
+| Team Member | Ownership | Responsibilities |
+|---|---|---|
+| **Amr** | Backend and full-stack architecture | Backend, full-stack architecture, NASA integration and deployment |
+| **Haneen** | Frontend and product experience | Frontend, React, UI/UX and frontend integration |
 
-### Shared responsibilities:
-- All: API contract review (agree on shapes before implementation)
-- All: Phase 9 integration testing and demo preparation
-- A + C: Data provenance and scientific accuracy review
-- B + C: UX and farmer-journey coherence
+### Shared responsibilities
+- Review API contracts and data provenance together.
+- Verify scientific claims and challenge alignment before the demo.
 
 ---
 
@@ -422,7 +422,7 @@ The optional 80% review gate is deferred to P1. If brought into scope, first def
 | Phase 1 | 2–3 hours | Backend + Frontend can work simultaneously |
 | Phase 2 | 4–6 hours | Backend models/API + Frontend map/forms in parallel |
 | Phase 3 | 4–6 hours | Backend focus; Frontend can work on Phase 2 UI polish |
-| Phase 4 | 3–4 hours | Backend focus; C starts crop catalog research |
+| Phase 4 | 3–4 hours | Backend focus; team begins crop catalog research |
 | Phase 5 | 6–8 hours | Backend + C collaborate on engine and crop rules |
 | Phase 6 | 4–5 hours | Backend + C collaborate on scenarios |
 | Phase 7 | 6–8 hours | Frontend focus; Backend supports API fixes |

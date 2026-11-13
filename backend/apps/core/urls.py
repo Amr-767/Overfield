@@ -10,5 +10,6 @@ urlpatterns = [
     # Phase 3E routes are declared before the farms router so the more specific
     # farm sub-paths win during resolution.
     path("", include("apps.earth_data.urls")),
+    path("", include("apps.indicators.urls")),
     path("", include("apps.farms.urls")),
 ]

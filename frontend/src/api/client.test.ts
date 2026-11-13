@@ -133,7 +133,7 @@ describe('apiRequest', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('failed to fetch')))
 
     await expect(apiRequest('/api/v1/farms/')).rejects.toMatchObject({
-      message: expect.stringContaining('Cannot reach the AgroSpace Quest API'),
+      message: expect.stringContaining('Cannot reach the Overfield API'),
     })
   })
 })

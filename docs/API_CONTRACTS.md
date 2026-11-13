@@ -1,7 +1,7 @@
-# AgroSpace Quest — API Contracts
+# Overfield — API Contracts
 
-**Last updated:** 2026-11-09
-**Status:** Phase 3E — health, auth/profile, farms/zones/context, NASA POWER scans, job status and daily observations are live. Crop catalog, recommendations, simulations and gamification remain design-only.
+**Last updated:** 2026-11-13
+**Status:** Phase 4F — health, auth/profile, farms/zones/context, NASA POWER scans, job status, daily observations and the four-indicator environmental summary are live. Only NASA POWER is integrated; other datasets in the NASA Space Apps 2026 guide are evaluated but not integrated (`HACKATHON_DATA_SOURCE_MATRIX.md`). Crop catalog, recommendations, simulations and gamification remain design-only.
 **Base URL:** `/api/v1/`  
 **Authentication:** JWT Bearer via `djangorestframework-simplejwt` 5.5.1 (implemented). All endpoints require a token except health, registration and token obtain/refresh.  
 **Format:** JSON  
@@ -27,6 +27,7 @@
 | `POST /farms/{id}/scans/` | ✅ Implemented (Phase 3E) |
 | `GET /data-jobs/{id}/` | ✅ Implemented (Phase 3E) |
 | `GET /farms/{id}/environment/daily/` | ✅ Implemented (Phase 3E) |
+| `GET /farms/{id}/environment/current/` | ✅ Implemented (Phase 4D) |
 | Sections 5–9 (crops, recommendations, simulations, gamification) | ⏳ Design-only |
 
 **Error responses:** validation failures use DRF's field-keyed shape `{"field": ["message", ...]}`;
@@ -76,7 +77,8 @@ Obtain JWT access + refresh tokens (username + password).
 }
 ```
 
-**Response:** `200 OK`
+**Response:** `200 OK` — example from the development demo farm (`window_days=7`); values are real
+serializer output, not hand-written.
 ```json
 {
   "access": "eyJ...",
@@ -490,50 +492,393 @@ public exposure, deliberately not implemented in Phase 3.
 **Validation (`400`)**: invalid date format, `start > end`, window > 366 days, future `end`,
 date before 1981-01-01, parameter before its first available date, unknown parameter.
 
-### GET `/api/v1/farms/{farm_id}/environment/current/` — P0
-Latest farm environmental summary.
+### GET `/api/v1/farms/{farm_id}/environment/current/` — P0 — ✅ implemented (Phase 4D)
+
+Unified environmental summary: **WATER, HEAT, SOIL, MARKET** in one response.
+
+**Data-source scope (Phase 4).** Only NASA POWER observations are integrated. This endpoint reads stored
+`EnvironmentalObservation` rows from the POWER catalogue; it does not query GPM, SMAP, Landsat,
+Sentinel-2, HLS, MODIS/VIIRS, ECOSTRESS, SRTM, GLDAS, ERA5, GAEZ or GEDI. The evaluated-but-not-integrated
+datasets and their limitations are documented in
+[`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md).
+
+**Authentication:** JWT required. **Ownership:** the farm is resolved with `owner=request.user`;
+another farmer's farm or an unknown id returns `404`, anonymous returns `401`. The owner always gets
+`200`, even when every indicator is `INSUFFICIENT_DATA`/`UNAVAILABLE`.
+
+**Query parameters**
+
+| Name | Type | Default | Rules |
+|---|---|---|---|
+| `window_days` | integer | `30` | `1–366`; non-integer or out-of-range → `400` with a `window_days` field error |
+
+The window applies to the **time-series** indicators (water, heat). Soil uses the sample date and
+market has no observation period, so neither is given the climate window.
+
+**Definition of "current" (important).** The endpoint does **not** return real-time weather. The
+window ends at the **latest available observation** for the farm and spans `window_days` back from
+that date. `window.latest_observation`, `window.age_days` and `window.freshness` make stale data
+obvious. With no observations, the window ends today and every time-series indicator reports
+`INSUFFICIENT_DATA` — no values are invented.
 
 **Response:** `200 OK`
 ```json
 {
-  "farm_id": 42,
-  "as_of": "2026-11-04T12:00:00Z",
-  "indicators": [
-    {
-      "name": "seasonal_mean_temperature",
-      "value": 22.4,
-      "unit": "°C",
-      "period": {"start": "2026-06-01", "end": "2026-09-30"},
-      "source": "NASA_POWER",
-      "dataset_product": "POWER parameter source/product to be verified",
-      "parameter": "T2M",
-      "spatial_support": {"description": "parameter/product-specific native support; verify before use", "native_resolution": null},
-      "temporal_convention": "UTC (request must explicitly include time-standard=UTC)",
-      "source_record_id": null,
-      "processing": {"method": "seasonal mean of valid daily values", "version": "pending"},
-      "quality_status": "AVAILABLE",
-      "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
-      "freshness": "2026-11-01"
+  "farm_id": 4,
+  "generated_at": "2026-11-12T13:19:23.377559Z",
+  "window": {
+    "start": "2025-08-01",
+    "end": "2025-08-07",
+    "days": 7,
+    "latest_observation": "2025-08-07",
+    "age_days": 462,
+    "freshness": "STALE"
+  },
+  "data_status": "OK",
+  "freshness": {
+    "latest_observation": "2025-08-07",
+    "age_days": 462,
+    "status": "STALE"
+  },
+  "indicators": {
+    "water": {
+      "code": "WATER",
+      "label": "Water",
+      "status": "OK",
+      "score": null,
+      "confidence": "MEDIUM",
+      "as_of": "2025-08-07",
+      "period": {
+        "start": "2025-08-01",
+        "end": "2025-08-07",
+        "latest_observation": "2025-08-07",
+        "age_days": 462,
+        "freshness": "STALE"
+      },
+      "coverage": {
+        "days_expected": 7,
+        "days_covered": 7,
+        "days_missing": 0,
+        "ratio": "1.0000",
+        "by_parameter": {
+          "PRECTOTCORR": 7
+        }
+      },
+      "completeness": null,
+      "summary": "all 7 days observed: 0 mm of rainfall over covered days, 0 rainy day(s) at or above 1.0 mm, longest observed dry run 7 day(s).",
+      "measurements": [
+        {
+          "name": "precipitation_total",
+          "value": "0.0000",
+          "unit": "mm",
+          "source": "NASA_POWER",
+          "parameter": "PRECTOTCORR",
+          "product": "MERRA-2",
+          "quality": "AVAILABLE",
+          "method": "sum of daily totals over covered days only",
+          "interpretation": null
+        },
+        {
+          "name": "rainy_days",
+          "value": 0,
+          "unit": "days",
+          "source": "NASA_POWER",
+          "parameter": "PRECTOTCORR",
+          "product": "MERRA-2",
+          "quality": "AVAILABLE",
+          "method": "days with precipitation >= 1.0 mm/day",
+          "interpretation": null
+        }
+      ],
+      "context": [
+        {
+          "name": "irrigation_available",
+          "value": "yes",
+          "unit": "boolean",
+          "source": null,
+          "parameter": null,
+          "product": null,
+          "quality": "FARMER_REPORTED",
+          "method": "farmer-entered",
+          "interpretation": null
+        }
+      ],
+      "drivers": [
+        {
+          "name": "Rainfall over covered days",
+          "direction": "NEUTRAL",
+          "value": "0.0000",
+          "unit": "mm"
+        }
+      ],
+      "missing": [
+        {
+          "name": "soil_moisture",
+          "impact": "Plant-available water and water stress cannot be assessed.",
+          "required_for": "water stress"
+        }
+      ],
+      "methodology": {
+        "id": "water.rainfall.v1",
+        "version": "1.0.0",
+        "description": "Rainfall summary over the latest available observation window: total, rainy days, maximum daily rainfall and longest observed dry run. No soil-moisture, evapotranspiration or irrigation modelling.",
+        "threshold_source": "Rainy-day threshold defaults to 1.0 mm/day (configurable via INDICATOR_RAINY_DAY_MM). No crop or regional threshold is assumed."
+      },
+      "sources": [
+        {
+          "provider": "NASA_POWER",
+          "parameter": "PRECTOTCORR",
+          "units": "mm/day",
+          "product": "MERRA-2",
+          "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
+          "native_resolution_note": "0.5 deg x 0.625 deg (MERRA-2 native grid)",
+          "time_standard": "UTC",
+          "access_date": "2026-11-09"
+        }
+      ],
+      "limitations": [
+        "Values are NASA POWER MERRA-2 grid-cell estimates for the farm's representative point, not on-farm measurements."
+      ]
     },
-    {
-      "name": "seasonal_precipitation_total",
-      "value": null,
-      "unit": "mm",
-      "source": "NASA_POWER",
-      "parameter": "PRECTOTCORR",
-      "dataset_product": "POWER parameter source/product to be verified",
-      "spatial_support": {"description": "parameter/product-specific native support; verify before use", "native_resolution": null},
-      "temporal_convention": "UTC (request must explicitly include time-standard=UTC)",
-      "quality_status": "MISSING",
-      "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
-      "limitation": "Precipitation data not yet fetched for this period"
+    "heat": {
+      "code": "HEAT",
+      "label": "Heat",
+      "status": "OK",
+      "score": null,
+      "confidence": "MEDIUM",
+      "as_of": "2025-08-07",
+      "period": {
+        "start": "2025-08-01",
+        "end": "2025-08-07",
+        "latest_observation": "2025-08-07",
+        "age_days": 462,
+        "freshness": "STALE"
+      },
+      "coverage": {
+        "days_expected": 7,
+        "days_covered": 7,
+        "days_missing": 0,
+        "ratio": "1.0000",
+        "by_parameter": {
+          "T2M": 7,
+          "T2M_MAX": 7,
+          "T2M_MIN": 7
+        }
+      },
+      "completeness": null,
+      "summary": "all 7 days observed: mean daily maximum 37.5357 °C and mean daily minimum 22.98 °C; 7 day(s) at or above 35 °C, 0 at or above the very-hot band; 0 cool night(s). Generic exposure only; not crop stress or frost.",
+      "measurements": [
+        {
+          "name": "mean_temperature",
+          "value": "29.3186",
+          "unit": "C",
+          "source": "NASA_POWER",
+          "parameter": "T2M",
+          "product": "MERRA-2",
+          "quality": "AVAILABLE",
+          "method": "mean of daily mean temperature over covered days",
+          "interpretation": null
+        },
+        {
+          "name": "mean_daily_maximum",
+          "value": "37.5357",
+          "unit": "C",
+          "source": "NASA_POWER",
+          "parameter": "T2M_MAX",
+          "product": "MERRA-2",
+          "quality": "AVAILABLE",
+          "method": "mean of daily maximum temperature over covered days",
+          "interpretation": null
+        }
+      ],
+      "context": [],
+      "drivers": [
+        {
+          "name": "Hot days",
+          "direction": "NEGATIVE",
+          "value": 7,
+          "unit": "days"
+        }
+      ],
+      "missing": [
+        {
+          "name": "crop_heat_thresholds",
+          "impact": "Crop-specific heat stress cannot be assessed; thresholds are generic air-temperature bands.",
+          "required_for": "crop heat risk"
+        }
+      ],
+      "methodology": {
+        "id": "heat.exposure.v1",
+        "version": "1.0.0",
+        "description": "Air-temperature exposure summary over the latest available observation window: mean, mean daily maximum/minimum, and counts of days above/below generic air-temperature thresholds. Not a crop-stress assessment.",
+        "threshold_source": "Generic exposure bands, configurable via INDICATOR_HOT_DAY_C (35), INDICATOR_VERY_HOT_DAY_C (40) and INDICATOR_COOL_NIGHT_C (5). Not agricultural or crop-specific thresholds."
+      },
+      "sources": [
+        {
+          "provider": "NASA_POWER",
+          "parameter": "T2M",
+          "units": "C",
+          "product": "MERRA-2",
+          "data_category": "REANALYSIS_OR_ASSIMILATION_ESTIMATE",
+          "native_resolution_note": "0.5 deg x 0.625 deg (MERRA-2 native grid)",
+          "time_standard": "UTC",
+          "access_date": "2026-11-09"
+        }
+      ],
+      "limitations": [
+        "Air-temperature exposure at a MERRA-2 grid cell, not a field or canopy measurement."
+      ]
+    },
+    "soil": {
+      "code": "SOIL",
+      "label": "Soil",
+      "status": "OK",
+      "score": null,
+      "confidence": "HIGH",
+      "as_of": "2026-03-15",
+      "period": {
+        "start": "2026-03-15",
+        "end": "2026-03-15",
+        "latest_observation": "2026-03-15",
+        "age_days": 242,
+        "freshness": "FRESH"
+      },
+      "coverage": null,
+      "completeness": {
+        "properties_expected": 6,
+        "properties_present": 6,
+        "ratio": "1.0000"
+      },
+      "summary": "6 of 6 soil properties recorded; source LAB_TEST; sample dated 2026-03-15 (FRESH); pH 7.80 (ALKALINE), texture clay_loam. No soil-health score is produced.",
+      "measurements": [
+        {
+          "name": "ph",
+          "value": "7.80",
+          "unit": "pH",
+          "source": "LAB_TEST",
+          "parameter": null,
+          "product": null,
+          "quality": "LAB_TEST",
+          "method": "composite",
+          "interpretation": "ALKALINE"
+        },
+        {
+          "name": "organic_carbon_percent",
+          "value": "1.20",
+          "unit": "%",
+          "source": "LAB_TEST",
+          "parameter": null,
+          "product": null,
+          "quality": "LAB_TEST",
+          "method": "composite",
+          "interpretation": null
+        }
+      ],
+      "context": [
+        {
+          "name": "sample_date",
+          "value": "2026-03-15",
+          "unit": "date",
+          "source": "LAB_TEST",
+          "parameter": null,
+          "product": null,
+          "quality": "LAB_TEST",
+          "method": "recorded sample date",
+          "interpretation": null
+        }
+      ],
+      "drivers": [
+        {
+          "name": "Soil properties recorded",
+          "direction": "NEUTRAL",
+          "value": "6/6",
+          "unit": null
+        }
+      ],
+      "missing": [],
+      "methodology": {
+        "id": "soil.properties.v1",
+        "version": "1.0.0",
+        "description": "Per-property soil reporting from the farmer context: pH, organic carbon, N/P/K, texture, sampling metadata and sample age. No composite soil-health score.",
+        "threshold_source": "pH bands are descriptive (ACIDIC < 6.0, NEUTRAL 6.0-7.5, ALKALINE > 7.5). Sample-age labels are operational (INDICATOR_SOIL_FRESH_MONTHS=12, INDICATOR_SOIL_STALE_MONTHS=24). No crop-suitability or nutrient thresholds."
+      },
+      "sources": [],
+      "limitations": [
+        "No composite soil-health score is produced; each property is reported on its own."
+      ]
+    },
+    "market": {
+      "code": "MARKET",
+      "label": "Market",
+      "status": "UNAVAILABLE",
+      "score": null,
+      "confidence": "NONE",
+      "as_of": null,
+      "period": null,
+      "coverage": null,
+      "completeness": null,
+      "summary": "No verified local market price source is available for Gharbia (EG), so market value cannot be assessed. No price is estimated or invented.",
+      "measurements": [],
+      "context": [],
+      "drivers": [
+        {
+          "name": "Local market price source",
+          "direction": "NEUTRAL",
+          "value": "unavailable",
+          "unit": null
+        }
+      ],
+      "missing": [
+        {
+          "name": "local_market_prices",
+          "impact": "No local farm-gate or wholesale price series is available for this region.",
+          "required_for": "market value"
+        }
+      ],
+      "methodology": {
+        "id": "market.unavailable.v1",
+        "version": "1.0.0",
+        "description": "Market value is not assessed: no verified local farm-gate price source exists for the demonstration region. National reference series are documented as context only.",
+        "threshold_source": "No price thresholds or scoring are defined (decision R18)."
+      },
+      "sources": [],
+      "limitations": [
+        "No synthetic, demo or manually curated prices are used (decision R18)."
+      ]
     }
-  ],
-  "data_completeness": {"status": "NOT_ASSESSED", "value": null, "reason": "Required checks, denominator, and weighting policy are pending approval."},
-  "confidence": {"status": "NOT_ASSESSED", "reason": "Evidence suitability rubric is pending; confidence is claim-specific and separate from completeness."},
-  "limitations": ["SMAP soil moisture not integrated in this version"]
+  },
+  "limitations": [
+    "Indicators describe the latest available observations, not real-time or forecast conditions.",
+    "Environmental values are NASA POWER grid-cell estimates for the farm's representative point, not on-farm measurements.",
+    "The analysis window applies to the time-series indicators (water, heat); soil and market are not time-series indicators.",
+    "Market value is unavailable: no verified local farm-price source exists for this region."
+  ]
 }
 ```
+
+**Indicator statuses:** `OK`, `PARTIAL`, `INSUFFICIENT_DATA`, `NOT_ASSESSED`, `UNAVAILABLE`.
+`score` is always `null` in Phase 4 (decision R14). `confidence` is `NONE`/`LOW`/`MEDIUM`/`HIGH`
+(coverage-based, capped at `MEDIUM` for grid-cell sources). `freshness` is reported separately.
+
+**Nullable `as_of` / `period`:** `period` is `null` when an indicator has no observation period — always
+for `MARKET`, and for `SOIL` when no sample date is recorded. `as_of` is `null` in the same cases. The
+`period` object is never fabricated to fill the climate window.
+
+**Top-level `data_status` semantics** (market is excluded because it is `UNAVAILABLE` by design):
+
+| Condition | `data_status` |
+|---|---|
+| Water, heat and soil are all `OK` | `OK` |
+| At least one of water/heat/soil is `OK` or `PARTIAL` | `PARTIAL` |
+| None of water/heat/soil can be assessed | `INSUFFICIENT_DATA` |
+
+**Missing-data behaviour:** missing days are never zero; totals/counts cover observed days only;
+`coverage` reports expected/covered/missing; `missing[]` explains what could not be assessed; soil
+returns `INSUFFICIENT_DATA` when no context exists and `PARTIAL` when only some properties are known.
+
+**Performance:** one owner-filtered farm lookup, one latest-date aggregate, one window query for all
+seven parameters, one catalogue query and one farmer-context query — **6 queries** regardless of the
+window size (asserted in tests).
 
 ### GET `/api/v1/farms/{farm_id}/environment/history/` — P1
 Contract deferred; not part of MVP.

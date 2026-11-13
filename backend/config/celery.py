@@ -1,4 +1,4 @@
-"""Celery application for AgroSpace Quest (Phase 1D).
+"""Celery application for Overfield (Phase 1D).
 
 Redis is provided by the existing Phase 1A Docker Compose stack; this module
 only wires Celery to that broker. No domain or NASA tasks are defined here.

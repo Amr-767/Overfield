@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Mapping, Protocol
 from urllib.parse import urlsplit, urlunsplit
 
-DEFAULT_USER_AGENT = "AgroSpaceQuest/0.1 (NASA Space Apps 2026; POWER client)"
+DEFAULT_USER_AGENT = "Overfield/0.1 (NASA Space Apps 2026; POWER client)"
 
 
 @dataclass(frozen=True, slots=True)

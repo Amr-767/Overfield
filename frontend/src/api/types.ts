@@ -1,4 +1,4 @@
-/** Shared API and domain types for the AgroSpace Quest SPA. */
+/** Shared API and domain types for the Overfield SPA. */
 
 /** Response shape for GET /api/v1/health/ (Phase 1B contract). */
 export interface HealthResponse {

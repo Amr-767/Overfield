@@ -1,10 +1,10 @@
-# AgroSpace Quest — Antigravity Phased Coding Playbook
+# Historical Antigravity Phased Coding Playbook — Former Project Name: AgroSpace Quest
 
-**Purpose:** A practical, copy-and-paste workflow for building AgroSpace Quest in Google Antigravity with Claude Opus 4.6 and a lower-cost model for routine tasks.
+**Historical purpose:** A practical, copy-and-paste workflow originally written for the former AgroSpace Quest project and its Antigravity development process. Treat product naming and implementation status here as historical; current guidance is in Overfield's active project documents.
 
 **Primary project brief:** `AgroSpace_Quest_Master_Agent_Handoff.md`
 
-**Product:** AgroSpace Quest: The Elemental Balance  
+**Former product name at time of writing:** AgroSpace Quest: The Elemental Balance
 **NASA challenge:** 2026 — Field Shift: Adapting Farms with NASA Data  
 **Core stack:** Django + Django REST Framework + PostgreSQL/PostGIS + React
 

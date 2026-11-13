@@ -1,6 +1,17 @@
-# AgroSpace Quest
+# Overfield
 
-Explainable crop-rotation decision support using NASA Earth data.
+**Explore Beyond the Field.**
+
+Overfield transforms NASA Earth observation data and agricultural context into understandable environmental insights that help farmers explore more resilient agricultural decisions.
+
+**NASA Space Apps Challenge 2026** — *Field Shift: Adapting Farms with NASA Data*
+
+**Initial demonstration region:** Gharbia Governorate, Egypt (`EG-GH`)
+
+## Project team
+
+- **Amr** — Backend, full-stack architecture, NASA integration and deployment
+- **Haneen** — Frontend, React, UI/UX and frontend integration
 
 ## Prerequisites
 
@@ -221,7 +232,8 @@ Expected output: `pong`.
 | `CELERY_BROKER_DB` / `CELERY_RESULT_DB` | Redis DB index for broker / results (defaults `0` / `1`) |
 | `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` | Optional full-URL overrides (e.g. `redis://redis:6379/0` for a future in-Compose worker) |
 
-No domain or NASA tasks exist yet; `core.ping` only proves the worker and broker work.
+Domain tasks exist from Phase 3 onward: `earth_data.ingest_farm_environment` performs the NASA POWER
+ingestion; `core.ping` remains the infrastructure probe.
 
 ## Frontend (Phase 2)
 
@@ -284,12 +296,52 @@ is stored as farmer-reported with low spatial precision.
 cd frontend
 npm run build   # tsc -b && vite build
 npm run lint    # oxlint
-npm test        # vitest (51 tests)
+npm test        # vitest (53 tests)
 ```
+
+## Environmental indicators (Phase 4)
+
+Four decision-support indicators are computed on demand from stored observations and the farmer
+context — no new tables, no provider calls at request time:
+
+| Indicator | What it reports |
+|---|---|
+| **WATER** | rainfall total over covered days, rainy days (≥ 1.0 mm), max daily rainfall, longest observed dry run |
+| **HEAT** | mean / mean-max / mean-min air temperature, hot days (≥ 35 °C), very hot days (≥ 40 °C), cool nights (≤ 5 °C) |
+| **SOIL** | per-property soil report (pH band, organic carbon, N/P/K, texture) with provenance and sample age |
+| **MARKET** | `UNAVAILABLE` — no verified local farm-gate price source exists |
+
+```powershell
+# JWT required; owner only
+curl "http://127.0.0.1:8000/api/v1/farms/4/environment/current/?window_days=30"   -H "Authorization: Bearer $TOKEN"
+```
+
+`current` means **the latest available observation**, not real-time weather: the window ends at the
+newest stored observation and the response reports `latest_observation`, `age_days` and `freshness`.
+No 0–100 scores are produced in Phase 4; missing data is reported as missing, never as zero.
+
+Methodology, thresholds and limitations: [`docs/ENVIRONMENTAL_INDICATORS.md`](docs/ENVIRONMENTAL_INDICATORS.md).
+API contract: [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md) §4.
+
+### Data sources
+
+**NASA POWER is the only integrated environmental data source.** It supplies the daily `T2M`,
+`T2M_MAX`, `T2M_MIN`, `PRECTOTCORR`, `RH2M`, `WS2M` and `ALLSKY_SFC_SW_DWN` series behind WATER and
+HEAT. It is reanalysis/assimilation data for a grid cell, not an on-farm measurement.
+
+GPM IMERG, SMAP, Landsat Collection 2, Sentinel-2, HLS, MODIS/VIIRS, ECOSTRESS, SRTM, GLDAS, ERA5,
+GAEZ and GEDI have been **evaluated but are not integrated**. U.S.-only resources (Web Soil Survey,
+SSURGO/STATSGO2, Cropland Data Layer, PRISM, NAIP, NLCD, CoCoRaHS, NWIS, USDA AMS Market News, NASS
+QuickStats, OpenET, LANDFIRE) do not cover Gharbia and must not be used as demo or fallback data.
+
+SOIL reports only farmer-provided `FarmerContext` measurements with provenance, and MARKET remains
+`UNAVAILABLE` because no verified local farm-gate price source exists. Product versions, resolutions,
+access methods and limitations:
+[`docs/HACKATHON_DATA_SOURCE_MATRIX.md`](docs/HACKATHON_DATA_SOURCE_MATRIX.md).
 
 ## Not implemented yet
 
-- NASA data providers and ingestion (Phase 3)
-- Environmental indicators, crop recommendations, simulations (Phases 4–6)
+- Crop knowledge base, rotation recommendations and simulations (Phases 5–6)
+- Frontend screens for the environmental indicators and the summary endpoint
 - Zones editing UI, farm editing UI, and farm deletion from the SPA
 - Leaderboards, rewards and verification (Phase 8)

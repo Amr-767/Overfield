@@ -248,7 +248,7 @@ export function FarmMap({
           ? 'Use the polygon tool to trace your field. You can move the corners afterwards.'
           : mode === 'point'
             ? 'Tap the map to place your farm location.'
-            : 'Farm boundary as saved in AgroSpace Quest.'}
+            : 'Farm boundary as saved in Overfield.'}
       </p>
     </div>
   )

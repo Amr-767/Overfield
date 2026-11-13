@@ -1,6 +1,7 @@
-# AgroSpace Quest — Project Status
+# Historical Project Status — Former Project Name: AgroSpace Quest
 
-**Last updated:** 2026-11-04  
+**Historical snapshot last updated:** 2026-11-04
+**Note:** Retained as an early development record; use the current Overfield `PROJECT_STATUS.md` for present status.
 **Current phase:** Phase 0 — Project Analysis and Implementation Planning  
 **Phase status:** ✅ Complete
 

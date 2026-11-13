@@ -1,4 +1,4 @@
-"""ASGI config for AgroSpace Quest."""
+"""ASGI config for Overfield."""
 
 import os
 

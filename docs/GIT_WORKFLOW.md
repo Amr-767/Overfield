@@ -1,6 +1,6 @@
-# AgroSpace Quest — Git & GitHub Workflow
+# Overfield — Git & GitHub Workflow
 
-**Project:** AgroSpace Quest
+**Project:** Overfield
 **Audience:** All team members
 **Status:** Active
 
@@ -220,8 +220,7 @@ git push origin --all
 git push origin --tags
 ```
 
-The `origin` remote is the **temporary sandbox** repository
-(`AgroSpace-Quest-Sandbox`). Verify it before pushing:
+The existing `origin` remote is `https://github.com/Amr-767/nasa.git` and must remain untouched. The Overfield repository is `https://github.com/Amr-767/Overfield.git`; add it separately as `overfield`. Verify remotes before pushing:
 
 ```bash
 git remote -v
@@ -289,58 +288,48 @@ git shortlog -sn
 
 ---
 
-## 10. Temporary sandbox repository
+## 10. Existing repository remote
 
-During pre-hackathon development, the project is hosted in a **private** sandbox:
+The current checkout's existing remote remains untouched:
 
 | Setting | Value |
 |---|---|
-| Repository | `AgroSpace-Quest-Sandbox` |
-| Visibility | **Private** |
-| Account | The authenticated `gh` account (see `gh auth status`) |
+| Repository | `https://github.com/Amr-767/nasa.git` |
 | Remote name | `origin` |
 
-This sandbox is temporary. The official NASA Space Apps repository is created separately
-during the event.
+The Overfield repository is separate and should use a distinct `overfield` remote. Do not rename or repoint `origin`.
 
 ---
 
-## 11. Future hackathon repository migration
+## 11. Publishing Overfield
 
-When the official hackathon repository exists (a **separate empty repository**),
-add it as a **second remote** and push everything. This transfers the complete history,
-all branches, and all tags.
+The Overfield GitHub repository is a separate destination. Keep `origin` unchanged. Add Overfield under a distinct remote name and publish only the reviewed branch.
 
 ```bash
-# 1. Add the official repository as a second remote (keep origin = sandbox)
-git remote add hackathon OFFICIAL_REPOSITORY_URL
+# 1. Add Overfield as a second remote (keep origin unchanged)
+git remote add overfield https://github.com/Amr-767/Overfield.git
 
 # 2. Verify both remotes
 git remote -v
 
-# 3. Push every local branch and all tags to the official repository
-git push hackathon --all
-git push hackathon --tags
+# 3. Push the reviewed current phase branch only
+git push -u overfield phase/4-environmental-engine
 
-# 4. Fetch to confirm the official repository now mirrors the history
-git fetch hackathon
+# 4. Fetch to confirm the branch was published
+git fetch overfield
 git branch --all
 git log --oneline --all
 ```
 
-Notes and rules for the migration:
+Notes:
 
-- The official repository must be **created empty** — do **not** initialise it with a
-  README, license, or `.gitignore`, or the first push will conflict.
-- `git push hackathon --all` transfers branches; `git push hackathon --tags` transfers tags.
-  Both are required.
+- Initialize the Overfield repository empty to avoid unrelated histories.
+- Do not publish every branch or tag by default; push only those intentionally reviewed.
 - **Do not rewrite commit dates** and **do not disguise when work was performed.** All
   commits carry their honest author/committer dates. The team must follow the official
   NASA Space Apps rules concerning pre-event work and repository history.
-- Do **not** create the official repository or run the migration now. This section is a
-  documented procedure for the event.
-- If access to the official repository is via an organisation, ensure the authenticated
-  account has push rights before running the migration.
+- Do not rename or repoint the existing `origin`; Overfield is an additional remote.
+- Confirm the Overfield repository visibility and collaborator access on GitHub.
 
 ---
 

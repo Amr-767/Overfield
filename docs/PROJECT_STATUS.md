@@ -1,26 +1,33 @@
-# AgroSpace Quest — Project Status
+# Overfield — Project Status
 
-**Last updated:** 2026-11-07
-**Current phase:** Phase 4 — Environmental Indicators and Data Fusion (**setup only**)
-**Phase status:** ✅ Phase 3 published and merged into `develop` · ▶️ Phase 4A not started
+**Last updated:** 2026-11-13
+**Current phase:** Phase 4 — Environmental Indicators and Data Fusion
+**Phase status:** ✅ Phase 4A–4E complete. ✅ Phase 4F (data-source documentation alignment) complete, uncommitted, awaiting review.
 
-> The Phase 1 foundation is complete and integration-verified. **Phase 2 Step 0** moved Django into the Compose stack so GeoDjango runs with native GDAL/GEOS/PROJ (ADR-018), enabled the PostGIS backend, verified the spatial stack end to end, and recorded the Leaflet + Leaflet-Geoman mapping decision (ADR-017). **Phase 2 backend** added the account profile, JWT endpoints, `Farm`/`FarmZone`/`FarmerContext`/`FarmCropHistory` models, owner-scoped APIs, geodesic area calculation and 63 tests. **Phase 2 frontend** added the five-step farm onboarding wizard with a Leaflet + Geoman boundary editor, auth screens, farm list/detail pages, and 44 new frontend tests. Nothing is committed yet; no Phase 3 work has started.
+> **Phases 1–3 are complete and merged into `develop`.** Phase 1 delivered the Docker infrastructure,
+> Django/DRF foundation, React/Vite frontend and the Celery worker. Phase 2 delivered accounts, JWT, the
+> `Farm`/`FarmZone`/`FarmerContext`/`FarmCropHistory` models, owner-scoped APIs, geodesic area calculation
+> and the five-step onboarding wizard. Phase 3 delivered the NASA POWER client, environmental data models,
+> Celery ingestion and the observation REST API. **Phase 4** added the WATER/HEAT/SOIL/MARKET indicator
+> engine, the environmental summary endpoint and `ENVIRONMENTAL_INDICATORS.md`. **Phase 4F** aligned the
+> documentation with the NASA Space Apps 2026 dataset audit and added
+> [`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md). Only **NASA POWER** is integrated.
 
 ## Repository Audit (current checkout)
 
 | Item | Actual status |
 |---|---|
-| Repository | Git repository initialized; current branch is `phase/2-farm-management` |
-| Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management` |
-| Remote | `origin` configured to `https://github.com/Amr-767/nasa.git`; all five branches published and tracking their origin counterparts |
-| Backend (`backend/`) | Django 6.0.10 + GeoDjango (`django.contrib.gis`) with the PostGIS backend; `config/` split settings, DRF + SimpleJWT, CORS, `apps.core` (health), `apps.accounts` (profile/auth), `apps.farms` (farms/zones/context), `domain_services` (geometry). Runs in the `backend` Compose service (ADR-018) |
-| Frontend (`frontend/`) | React 19 + TypeScript + Vite + React Router 7 + TanStack Query 5 + Leaflet 1.9/Leaflet-Geoman: auth screens, 5-step onboarding wizard, farm list/detail, env-driven API client with JWT handling |
-| Documentation (`docs/`) | Master Handoff, Phased Coding Playbook, Phase 0 docs, Git workflow, review, and risk register present |
-| `README.md` | Documents Phase 1A infrastructure, Phase 1B backend, and Phase 1C frontend setup/run/build/lint/test commands |
+| Repository | Git repository initialized; current branch is `phase/4-environmental-engine` |
+| Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management`, `phase/3-nasa-integration`, `phase/4-environmental-engine` |
+| Remote | `origin` configured to `https://github.com/Amr-767/nasa.git`; Phase 0–3 branches published and tracking their origin counterparts |
+| Backend (`backend/`) | Django 6.0.10 + GeoDjango (`django.contrib.gis`) with the PostGIS backend; `config/` split settings, DRF + SimpleJWT, CORS, `apps.core` (health, `core.ping`), `apps.accounts` (profile/auth), `apps.farms` (farms/zones/context), `apps.earth_data` (POWER provider, models, Celery ingestion, REST API), `apps.indicators` (WATER/HEAT/SOIL/MARKET + summary API), `domain_services` (geometry). Runs in the `backend` Compose service (ADR-018) |
+| Frontend (`frontend/`) | React 19 + TypeScript + Vite + React Router 7 + TanStack Query 5 + Leaflet 1.9/Leaflet-Geoman: auth screens, 5-step onboarding wizard, farm list/detail, env-driven API client with JWT handling. No indicator UI yet |
+| Documentation (`docs/`) | Master Handoff, Phased Coding Playbook, Phase 0 docs, Git workflow, review, risk register, environmental-indicator methodology and the NASA data-source matrix present |
+| `README.md` | Documents infrastructure, backend, worker and frontend setup plus the Phase 4 indicator API and the integrated-data-source scope |
 | `.gitignore` | Present; `.env` and `.venv/` ignored |
 | `.env.example` | Present with Postgres/Redis/Django placeholders; local `.env` is ignored |
-| Dependencies | Backend pinned in `backend/requirements.txt` (adds `celery[redis]` in Phase 1D); frontend pinned in `frontend/package.json` + `package-lock.json`; virtualenv and `node_modules` are local-only |
-| Tests | Backend: **76 Django tests** (63 Phase 2 + 13 Phase 1) passing. Frontend: **53 Vitest tests** (7 Phase 1 + 46 Phase 2) passing |
+| Dependencies | Backend pinned in `backend/requirements.txt` (Celery + redis included); frontend pinned in `frontend/package.json` + `package-lock.json`; virtualenv and `node_modules` are local-only |
+| Tests | Backend: **286 Django tests** passing. Frontend: **53 Vitest tests** passing |
 | Frontend deps | `react-router-dom`, `@tanstack/react-query`, `leaflet`, `react-leaflet`, `@geoman-io/leaflet-geoman-free`; test-only `jsdom`, `@testing-library/react`, `@testing-library/user-event` |
 | Database | Docker Compose `postgis/postgis:17-3.5` (PostgreSQL 17.5, PostGIS 3.5.2); Django uses `django.contrib.gis.db.backends.postgis` |
 | Backend runtime | Docker image `python:3.14-slim` (Debian 13) with GDAL 3.10.3, GEOS 3.13.1, PROJ 9.6.0; `backend/Dockerfile` + `backend/.dockerignore`; the host venv is editor-only |
@@ -28,13 +35,15 @@
 
 ### Documentation inventory
 
-- [`AgroSpace_Quest_Master_Agent_Handoff.md`](AgroSpace_Quest_Master_Agent_Handoff.md) — primary product/specification source
-- [`AgroSpace_Quest_Antigravity_Phased_Coding_Playbook.md`](AgroSpace_Quest_Antigravity_Phased_Coding_Playbook.md) — phased execution guide
-- [`AgroSpace_Quest_Phase0_Review.md`](AgroSpace_Quest_Phase0_Review.md)
+- [`AgroSpace_Quest_Master_Agent_Handoff.md`](AgroSpace_Quest_Master_Agent_Handoff.md) — historical product specification (former project name)
+- [`AgroSpace_Quest_Antigravity_Phased_Coding_Playbook.md`](AgroSpace_Quest_Antigravity_Phased_Coding_Playbook.md) — historical phased execution guide (former project name)
+- [`AgroSpace_Quest_Phase0_Review.md`](AgroSpace_Quest_Phase0_Review.md) — historical review (former project name)
 - [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md)
 - [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md)
 - [`API_CONTRACTS.md`](API_CONTRACTS.md)
 - [`DATA_PROVENANCE.md`](DATA_PROVENANCE.md)
+- [`ENVIRONMENTAL_INDICATORS.md`](ENVIRONMENTAL_INDICATORS.md)
+- [`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md)
 - [`RISK_REGISTER.md`](RISK_REGISTER.md)
 - [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md)
 
@@ -642,24 +651,333 @@ Postgres/Redis containers and the `postgres_data` volume intact (3 days uptime) 
 Phase 1/2 data intact (users 2, profiles 2, farms 2, contexts 1, crops 2) · no secrets in changes ·
 branch `phase/3-nasa-integration` with no Git operations performed.
 
+## Phase 4B Completion — Indicator Foundation (Water + Heat)
+
+**Status:** ✅ COMPLETE (2026-11-09), uncommitted
+
+### Decisions recorded
+
+ADR-021 (demo region `EG-GH`), ADR-022 (indicator contract, `score: null`, coverage/freshness rules,
+no snapshot model), ADR-023 (water/heat/soil/market methodology). Region code fits the existing
+`Farm.region_code` field (max_length 80) — no schema change.
+
+### Application foundation (`apps/indicators/`)
+
+| Module | Contents |
+|---|---|
+| `contract.py` | `IndicatorStatus` (OK / PARTIAL / INSUFFICIENT_DATA / NOT_ASSESSED / UNAVAILABLE), `Confidence` (NONE / LOW / MEDIUM / HIGH), `Freshness` (FRESH / RECENT / STALE / UNKNOWN), `Coverage`, `Period`, `Measurement`, `SourceReference`, `MissingInput`, `Driver`, `Methodology`, `IndicatorResult` (uniform envelope, `score` always `null`, JSON-safe `as_dict()` with decimals as strings) |
+| `coverage.py` | Non-overlapping confidence bands (0 / <60 / <95 / ≥95 %), grid-cell confidence cap (MEDIUM), freshness bands (≤7 d / ≤30 d / stale), inclusive window helpers, `latest_window()` (window ends at the newest observation), coverage math |
+| `services/water.py` | `PRECTOTCORR`: total over covered days, rainy days ≥ 1.0 mm (configurable), max daily rainfall, longest observed dry run with contiguity flag, coverage, status, confidence, provenance, farmer-reported irrigation as context |
+| `services/heat.py` | `T2M` / `T2M_MAX` / `T2M_MIN`: mean, mean max, mean min, hot days ≥ 35 °C, very hot ≥ 40 °C, cool nights ≤ 5 °C (all configurable), per-parameter coverage, headline coverage = weakest parameter |
+| `selectors.py` | DB adapters over Phase 3 tables (`parameter_series`, `observed_dates`, `source_reference(s)`) — services stay pure and never call NASA |
+
+**Settings** (all configurable): `INDICATOR_DEFAULT_WINDOW_DAYS=30`, `INDICATOR_MAX_WINDOW_DAYS=366`,
+`INDICATOR_RAINY_DAY_MM=1.0`, `INDICATOR_HOT_DAY_C=35`, `INDICATOR_VERY_HOT_DAY_C=40`,
+`INDICATOR_COOL_NIGHT_C=5`, `INDICATOR_FRESH_MAX_DAYS=7`, `INDICATOR_RECENT_MAX_DAYS=30`,
+`INDICATOR_SOIL_FRESH_MONTHS=12`, `INDICATOR_SOIL_STALE_MONTHS=24`.
+
+### Methodology guards implemented
+
+- Missing days never become zero rainfall/temperature/exposure; totals and counts cover observed days only.
+- A dry spell is only contiguous when the window has no gaps; otherwise the longest **observed** run is
+  reported with an explicit limitation.
+- Counts are `null` (not `0`) when a parameter has no observation at all.
+- Confidence is capped at MEDIUM for grid-cell sources; freshness is reported separately.
+- No numeric scores; no soil/market implementation; no snapshots, migrations, endpoints or frontend.
+
+### Tests
+
+| File | Tests |
+|---|---|
+| `test_indicator_contract.py` | 16 |
+| `test_indicator_water.py` | 14 |
+| `test_indicator_heat.py` | 15 |
+| `test_indicator_selectors.py` | 10 |
+
+Covers known totals, rainy days, contiguous and gap-interrupted dry spells, means, all three exposure
+counts, missing values, empty windows, coverage bands, confidence caps, freshness/stale data, source
+provenance, Decimal-safe output, and services reading real Phase 3 rows.
+
+**Full suite:** **230 tests OK** (175 previous + 55 new); `manage.py check` clean;
+`makemigrations --check` → no changes (no models added).
+
+## Phase 4C Completion — Soil and Market Indicators
+
+**Status:** ✅ COMPLETE (2026-11-09), uncommitted
+
+### Soil (`apps/indicators/services/soil.py`)
+
+Per-property reporting from `FarmerContext`; **no composite score**.
+
+| Property | Unit | Interpretation |
+|---|---|---|
+| `ph` | pH | descriptive band only: `ACIDIC < 6.0`, `NEUTRAL 6.0–7.5`, `ALKALINE > 7.5` |
+| `organic_carbon_percent` | % | reported as measured; no good/bad threshold, no trend from one sample |
+| `nitrogen_ppm` / `phosphorus_ppm` / `potassium_ppm` | ppm | method preserved; **never** classified deficient/sufficient/excessive |
+| `texture_class` | class | qualitative context; no water-holding capacity derived |
+
+Sampling metadata (`sample_date`, `sampling_depth_cm`, `sampling_method`, `lab_name`) is returned in
+`context`; provenance (`soil_source`) is carried on every measurement.
+
+**Sample freshness** (operational labels, separate from confidence): `FRESH < 12 months`,
+`AGEING 12–24`, `STALE > 24`, `UNKNOWN` when no date, and **`FUTURE`** for a future date (never treated
+as fresh). Thresholds configurable via `INDICATOR_SOIL_FRESH_MONTHS` / `INDICATOR_SOIL_STALE_MONTHS`.
+
+**Status/completeness:** `OK` when all six core properties exist, `PARTIAL` when some do (with an
+explicit `missing[]` list), `INSUFFICIENT_DATA` when there is no context or no soil property.
+`coverage` is `null` (no daily window); a new `completeness` block reports properties expected/present.
+
+**Confidence** = completeness × provenance factor (LAB_TEST 1.0, EXTERNAL_PROVIDER 0.8,
+FARMER_REPORTED 0.7, REMOTE_SENSING 0.6, UNKNOWN 0.4) × freshness factor (FRESH 1.0, AGEING 0.75,
+STALE 0.5, UNKNOWN 0.6, FUTURE 0.4), mapped to the shared bands. Example: complete fresh lab sample →
+HIGH; complete fresh farmer-reported → MEDIUM; complete stale lab → LOW.
+
+### Market (`apps/indicators/services/market.py`)
+
+Always `status: UNAVAILABLE`, `confidence: NONE`, `score: null`, **no measurements and no prices**.
+The summary names the farm's region; `missing[]` lists local prices, crop-specific price, market access
+and expected yield; `limitations[]` documents the verified national sources (FAOSTAT producer prices,
+WFP retail) as **context only**, explicitly not local farm-gate prices, and states that no synthetic or
+demo prices are used (R18).
+
+### Contract additions (additive, no behaviour change for water/heat)
+
+`Freshness.AGEING` / `Freshness.FUTURE`; `Measurement.value` may be text (texture) and carries an
+optional `interpretation`; `Coverage` is optional; new `Completeness` block for non-time-series
+indicators.
+
+### Tests
+
+| File | Tests |
+|---|---|
+| `test_indicator_soil.py` | 19 |
+| `test_indicator_market.py` | 8 |
+| `test_indicator_selectors.py` (extended) | 13 (was 10) |
+
+Covers pH bands and boundaries, organic carbon without thresholds, N/P/K method preservation and no
+classification, texture as context, all freshness labels including future dates, partial profiles with
+missing lists, absent context, provenance-driven confidence, stale samples, no composite score, market
+unavailability, and soil indicators built from a real `FarmerContext`.
+
+**Full suite:** **260 tests OK** (230 previous + 30 new); `manage.py check` clean;
+`makemigrations --check` → no changes (still no models).
+
+## Phase 4D Completion — Environmental Summary API
+
+**Status:** ✅ COMPLETE (2026-11-09), uncommitted
+
+### Endpoint
+
+`GET /api/v1/farms/{farm_id}/environment/current/?window_days=30`
+
+- JWT required; farm resolved with `owner=request.user` → another farmer's farm or unknown id `404`,
+  anonymous `401`; the owner always gets `200`.
+- `window_days` default 30, range 1–366; invalid/out-of-range → `400` with a `window_days` error.
+- Returns `farm_id`, `generated_at`, `window`, `data_status`, `freshness`, `indicators`
+  (`water`, `heat`, `soil`, `market`) and top-level `limitations`.
+- Every indicator uses the shared envelope (`code, label, status, score, confidence, as_of, period,
+  coverage, completeness, summary, measurements, context, drivers, missing, methodology, sources,
+  limitations`); `score` is `null` everywhere; `market` is always `UNAVAILABLE`.
+
+### "Current" means latest available observation
+
+The window ends at the **latest stored observation** (not today) and spans `window_days` back.
+`window.latest_observation`, `window.age_days` and `window.freshness` expose staleness; with no
+observations the window ends today and the time-series indicators report `INSUFFICIENT_DATA`.
+Soil uses its sample date and market has no observation period, so neither receives the climate window.
+
+### Top-level `data_status`
+
+| Condition | Status |
+|---|---|
+| water, heat and soil all `OK` | `OK` |
+| at least one of them `OK`/`PARTIAL` | `PARTIAL` |
+| none assessable | `INSUFFICIENT_DATA` |
+
+`MARKET` is excluded from this roll-up because it is `UNAVAILABLE` by design (R18) — it must not make
+the whole response look unavailable.
+
+### Orchestration and performance
+
+`apps/indicators/summary.py` builds the response; the view only resolves the farm, validates
+`window_days` and calls the orchestrator. One shared window query serves water and heat (no per-day or
+per-parameter queries), and the catalogue/context are fetched once:
+
+| Query | Purpose |
+|---|---|
+| 1 | owner-filtered farm lookup |
+| 2 | latest observation date (aggregate) |
+| 3 | all seven parameters for the window (single query) |
+| 4 | dataset source metadata (single query) |
+| 5 | farmer context (single query) |
+| 6 | (test client) — total asserted as **6** |
+
+`source_references()` was rewritten from one query per parameter to a single query (verified
+performance defect fixed during integration).
+
+### Tests
+
+`backend/tests/test_indicator_summary_api.py` — **26 tests**: anonymous 401, other farmer 404,
+nonexistent 404, owner 200 without data, default/custom/min/max windows, invalid windows (0, −5, 367,
+1000, `abc`, `1.5`), all four indicators present with the full envelope, market always `UNAVAILABLE`,
+no numeric scores, `as_of` per indicator, soil not given the climate window, irrigation context,
+no real-time claims, no-observations status, soil-only partial, sparse coverage, complete-window `OK`,
+missing/partial soil, stale freshness and age-days, latest-observation date, and a **6-query**
+assertion.
+
+**Full suite:** **286 tests OK** (260 previous + 26 new); `manage.py check` clean;
+`makemigrations --check` → no changes (no models added).
+
+## Phase 4E Completion — Documentation, Methodology and Provenance
+
+**Status:** ✅ COMPLETE (2026-11-12), uncommitted
+
+### New document
+
+[`ENVIRONMENTAL_INDICATORS.md`](ENVIRONMENTAL_INDICATORS.md) — the authoritative description of the
+four indicators: shared contract, status/confidence/freshness rules, "current = latest available
+observation", per-indicator formulas and units, configurable thresholds, provenance summary, known
+limitations and verified references.
+
+### Methodology identifiers (as implemented)
+
+| Indicator | Identifier | Version |
+|---|---|---|
+| Water | `water.rainfall.v1` | 1.0.0 |
+| Heat | `heat.exposure.v1` | 1.0.0 |
+| Soil | `soil.properties.v1` | 1.0.0 |
+| Market | `market.unavailable.v1` | 1.0.0 |
+
+The Phase 4A prompt suggested `soil.profile.v1` as an example; the implemented identifier is
+`soil.properties.v1` and the documentation records the code, not the example.
+
+### Provenance
+
+`DATA_PROVENANCE.md` gained §11 "Derived Indicators (Phase 4)": indicator → methodology → inputs,
+a source-type distinction (provider observation / farmer-reported / laboratory / derived /
+unavailable), an explicit list of what is deliberately **not** derived (soil moisture, ET, water
+stress, crop heat stress, market prices, climate normals), and a pointer to the threshold table.
+
+### API contract
+
+`API_CONTRACTS.md` §4 now documents the exact endpoint, JWT/ownership behaviour, `window_days`
+(default 30, 1–366), the latest-observation anchoring, top-level `data_status` rules, all four
+indicator structures, status/confidence/freshness values, missing-data behaviour, market
+`UNAVAILABLE`, HTTP codes, and a **real serializer example** (captured from the development demo farm,
+not hand-written).
+
+### Consistency pass
+
+- `README.md`: added the Phase 4 section (endpoint, indicator summary, docs links) and corrected the
+  stale "not implemented" list and frontend test count (53).
+- `DEVELOPMENT_PLAN.md`: 4A–4E marked complete.
+- `ARCHITECTURE_DECISIONS.md`: added ADR-024 ("current" = latest available observation).
+- No documentation claims a feature that does not exist; no invented thresholds, prices or citations.
+
+### Verification
+
+`git diff --check` clean · documentation links resolve to existing files · methodology ids, parameter
+codes and units cross-checked against `apps/indicators/` and the `DatasetSource` catalogue · API
+example parsed as JSON and compared field-by-field with a live response · no secrets in any changed
+file · indicator tests re-run: **111 tests OK** (contract 16, water 14, heat 15, soil 19, market 8,
+selectors 13, summary API 26).
+
+## Phase 4F Completion — NASA Data-Source Documentation Alignment
+
+**Status:** ✅ COMPLETE (2026-11-13), uncommitted, documentation only + one test correction
+
+### What was wrong before this pass
+
+The documentation implied or stated more integration than existed. `DATA_PROVENANCE.md` still called GPM
+IMERG and SMAP "MVP Candidate" / "P1 scope", the soil section described SoilGrids as an active fallback,
+and `API_CONTRACTS.md` showed a fabricated `period` object for MARKET. The repository audit confirmed
+that **only NASA POWER** has a provider adapter, catalogue rows, stored observations and verified
+API read-back.
+
+### New document
+
+[`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md) — the canonical record of the
+NASA Space Apps 2026 datasets: product/version, coverage, spatial and temporal
+resolution, variables and units, intended agricultural use, quality/missing-data limitations, official
+access method, integration status, phase, and why U.S.-only resources cannot serve Gharbia. It also
+carries the spatial reality check, the architecture gaps that block raster sources, and the explicit
+"do not integrate" decisions.
+
+### Integration classification (verified)
+
+| Class | Datasets |
+|---|---|
+| **Integrated** | NASA POWER only (WATER + HEAT inputs) |
+| **Evaluated, not integrated — Phase 5 candidate** | GPM IMERG, SMAP, Landsat C2, Sentinel-2, HLS, MODIS/VIIRS, ECOSTRESS, GAEZ v5 |
+| **Evaluated, not integrated — later phase** | SRTM, GLDAS-2.1, ERA5/ERA5-Land |
+| **Not suitable for annual-crop monitoring** | GEDI |
+| **Not suitable for Gharbia (U.S.-only)** | WSS, SSURGO/STATSGO2, CDL, PRISM, NAIP, NLCD, CoCoRaHS, NWIS, USDA AMS Market News, NASS QuickStats, OpenET, LANDFIRE |
+| **Requires dataset-by-dataset validation** | USDA Ag Data Commons (a repository, not a dataset) |
+
+### Documentation changes
+
+- `DATA_PROVENANCE.md`: status header, integration note, implemented POWER processing steps, IMERG/SMAP/
+  ECOSTRESS reclassified as evaluated-not-integrated with verified product details, SoilGrids no longer
+  presented as an active fallback, evaluated-dataset table rewritten, matrix reference added.
+- `API_CONTRACTS.md`: Phase 4 source scope, nullable `as_of`/`period` rule, MARKET `period` example
+  corrected to `null` (it previously showed a window that the code never returns).
+- `ENVIRONMENTAL_INDICATORS.md`: source scope, nullable `period` row, top-level vs indicator-level
+  freshness caveat, matrix pointer.
+- `README.md`: integrated-data-source note and matrix link.
+- `DEVELOPMENT_PLAN.md`: Phase 4F slice and corrected Phase 5 priorities.
+- `PROJECT_STATUS.md`: this section plus corrected branch, test-count and documentation-inventory claims.
+
+### Methodology preserved
+
+WATER and HEAT calculations, thresholds and units are unchanged. SOIL still reports `FarmerContext`
+measurements with provenance and no composite score. MARKET remains `UNAVAILABLE`. All scores remain
+`null`. No synthetic soil value, market price or rainfall value was introduced. Confidence and freshness
+remain separate. The matrix records the interpretation rules that must survive future integration:
+SMAP moisture ≠ laboratory soil measurement, ECOSTRESS LST ≠ air temperature, GPM rainfall ≠
+irrigation-water availability, NDVI/EVI ≠ soil health, GAEZ suitability ≠ field-specific yield guarantee.
+
+### Test correction (disclosed)
+
+`tests/test_indicator_soil.py::SoilFreshnessTests::test_missing_sample_date_is_unknown` asserted a
+`Period` object for a soil profile with no sample date, but `calculate_soil_indicator()` intentionally
+returns `period=None` in that case (documented in `API_CONTRACTS.md`). The test was updated to assert
+`period is None`, `freshness=UNKNOWN` via the driver, and the "sample date not recorded" summary. **No
+application code, model, migration, endpoint, task or calculation was changed in Phase 4F.**
+
+### Verification
+
+`manage.py check` clean · `makemigrations --check` no changes · full backend suite **286 tests OK** ·
+soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `npm run build` clean ·
+`git diff --check` clean · documentation links resolve to existing files · no secrets in changed files.
+
+> **Not verified in this pass:** live acquisition counts over Gharbia for ECOSTRESS, GEDI, Landsat or
+> Sentinel-2; seasonal cloud statistics; Egyptian farm-size distribution; complete licence terms; exact
+> current versions of every SMAP L4/ECOSTRESS product. These need a read-only Phase 5 validation spike.
+
 ## Open Decisions and Dependencies
 
 | Decision | Status | Owner |
 |---|---|---|
-| Demonstration region and stable `region_code` | Needs team decision | Team |
+| Demonstration region and stable `region_code` | ✅ Resolved 2026-11-09: Gharbia, Egypt — `EG-GH` (ADR-021) | Team |
 | Farmer persona, farm scale, crop system, seasons/calendar | Needs team decision | Team + Person C |
 | Minimum regional crop catalog / expert reviewer | Source/reviewer not selected | Person C |
 | Authentication identity | ✅ Resolved: `username` login on Django's built-in user + `FarmerProfile` (ADR-019) | Team + Person A |
 | Map library | ✅ Resolved 2026-11-07: Leaflet + Leaflet-Geoman Free with React Leaflet (ADR-017) | Person B |
-| NASA POWER parameters for demo region | Verify before Phase 3 | Person A + Person C |
+| NASA POWER parameters for demo region | ✅ Resolved 2026-11-09: `T2M`, `T2M_MAX`, `T2M_MIN`, `PRECTOTCORR`, `RH2M`, `WS2M`, `ALLSKY_SFC_SW_DWN` | Person A + Person C |
+| Second precipitation source (GPM IMERG) | Open: requires an approved observation-schema extension before implementation (matrix §8) | Team |
+| Egyptian farm-gate market prices | Open: no verified local source; MARKET stays `UNAVAILABLE` (R18) | Team + Person C |
 | Deployment target | Needs team decision | Team |
 
 ## Corrected Scope Decisions
 
-- NASA POWER is the first planned integration; meteorological parameters are reanalysis/assimilation estimates where applicable.
+- NASA POWER is the only integrated source; it is reanalysis/assimilation, not on-farm measurement.
 - Farm boundaries planned as SRID 4326 geometry; geodesic area via geography cast (Phase 2).
 - Strategy enum: `BASELINE`, `WATER_EFFICIENT`, `SOIL_REGENERATION`.
-- GPM, report export, and optional 80% gate remain P1/deferred.
+- GPM IMERG, SMAP, Landsat/Sentinel-2/HLS, MODIS/VIIRS, ECOSTRESS, GAEZ, SRTM, GLDAS and ERA5 are
+  **evaluated but not integrated**; see [`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md).
+  Report export and the optional 80% gate remain P1/deferred.
+- U.S.-only resources (WSS, SSURGO, CDL, PRISM, NAIP, NLCD, CoCoRaHS, NWIS, USDA AMS/QuickStats,
+  OpenET, LANDFIRE) are out of scope for Gharbia and must not be used as demo or fallback data.
 
 ## Git Workflow Status
 
@@ -674,7 +992,11 @@ branch `phase/3-nasa-integration` with no Git operations performed.
 
 ## Next recommended task
 
-**Phase 4A — indicator definitions.** Fix the formulas, periods, units and quality rules for the
-seasonal summaries (mean/min/max temperature, precipitation total, dry-spell run length) against the
-verified POWER semantics recorded in `DATA_PROVENANCE.md`, then implement them as pure aggregation
-services in slice 4B. Do not add provider calls; Phase 4 reads stored observations only.
+1. **Review Phase 4F** (this documentation alignment) and commit it on `phase/4-environmental-engine`.
+2. **Then decide on a second precipitation source.** A GPM IMERG integration is feasible — V07B covers
+   Gharbia at 0.1° — but the current schema cannot represent product run/version, valid-pixel coverage,
+   aggregation method or QA reason, and `(farm, source, date)` uniqueness blocks anything beyond one
+   scalar per source per day. Any implementation must therefore start with a **minimum architecture
+   proposal** (matrix §8), not with a provider adapter.
+3. **Phase 5 — Crop knowledge base and rotation engine.** Requires the team to source and review the
+   Gharbia crop catalogue and season calendar (Risk R6/R13); no crop-specific thresholds exist yet.

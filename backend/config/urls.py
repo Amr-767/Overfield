@@ -1,4 +1,4 @@
-"""Root URL configuration for AgroSpace Quest."""
+"""Root URL configuration for Overfield."""
 
 from django.contrib import admin
 from django.urls import include, path

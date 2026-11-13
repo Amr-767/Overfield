@@ -1,4 +1,4 @@
-"""AgroSpace Quest project package.
+"""Overfield project package.
 
 Importing the Celery app here guarantees it is loaded when Django starts, so
 ``@shared_task`` decorators bind to the correct application.

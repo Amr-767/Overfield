@@ -1,6 +1,7 @@
-# AgroSpace Quest — Phase 0 Review & Required Corrections
+# Historical Phase 0 Review — Former Project Name: AgroSpace Quest
 
-**Review date:** 2026-11-05  
+**Review date:** 2026-11-05
+**Historical note:** This review concerns the former AgroSpace Quest project identity; current project status is documented under Overfield.
 **Reviewed material:** `PROJECT_STATUS.md`, `DEVELOPMENT_PLAN.md`, `ARCHITECTURE_DECISIONS.md`, `API_CONTRACTS.md`, `DATA_PROVENANCE.md`, plus the Master Agent Handoff and Antigravity Phased Coding Playbook included in the submitted ZIP.
 
 ## 1. Verdict
