@@ -84,7 +84,7 @@ async function parseError(response: Response): Promise<ApiError> {
     message = 'Your session has expired. Please sign in again.'
   }
 
-  return new ApiError(message, response.status, fieldErrors)
+  return new ApiError(message, response.status, fieldErrors, payload)
 }
 
 async function send(

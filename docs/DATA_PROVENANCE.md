@@ -311,6 +311,32 @@ Not retrieved. No adapter, catalogue rows, or observations exist.
 | **Source** | Must be sourced from regional agricultural extension services, FAO references, or peer-reviewed literature. **NOT from LLM generation.** |
 | **Validation** | Needs local agronomist review (mark as "demo data — needs expert validation" if unreviewed) |
 
+### 5.1/5.2 Agricultural research dataset registry (implemented 2026-11-13)
+
+Overfield now has an **empty, source-specific** agricultural knowledge registry in
+`agronomy.AgriculturalDataset`, `DatasetImport`, `Crop`, and `CropCharacteristic`.
+It is structurally separate from `earth_data.DatasetSource` and
+`EnvironmentalObservation`: NASA-derived environmental values remain farm and date
+observations; agricultural records are research evidence about a crop.
+
+No individual USDA Ag Data Commons dataset is currently approved in this repository.
+Ag Data Commons is a repository, not a homogeneous dataset or a production crop
+profile. Consequently there are no production crop rows, no USDA-derived Egyptian
+calendar, and no fallback values in this release.
+
+Before a dataset can be imported it must have a recorded identifier, title, publisher,
+version, official landing/data-access URL, licence/attribution, geographic scope and
+an explicit `APPROVED` status. The importer takes an explicit, dataset-specific field
+mapping after the actual file structure has been checked; it does not scrape landing
+pages or assume an Ag Data Commons schema. It records file checksum, import result,
+row errors and timestamps. Characteristics retain source crop ID, cultivar/variety,
+raw and normalized values/units, scope, source-record identifier/URL, DOI through the
+dataset record, evidence reference, validation status, and source metadata.
+
+The geographic applicability enum is `DIRECT` (Egypt/Gharbia), `GENERAL`,
+`TRANSFERABLE_LIMITED`, `US_SPECIFIC`, or `UNKNOWN`. U.S.-specific evidence remains
+visible in its profile for audit but is not listed as region-ready for `EG-GH`.
+
 ### 5.2 Soil Information
 
 | Field | Value |

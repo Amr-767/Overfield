@@ -1,7 +1,7 @@
 # Overfield — API Contracts
 
-**Last updated:** 2026-11-13
-**Status:** Phase 4F — health, auth/profile, farms/zones/context, NASA POWER scans, job status, daily observations and the four-indicator environmental summary are live. Only NASA POWER is integrated; other datasets in the NASA Space Apps 2026 guide are evaluated but not integrated (`HACKATHON_DATA_SOURCE_MATRIX.md`). Crop catalog, recommendations, simulations and gamification remain design-only.
+**Last updated:** 2026-11-14
+**Status:** Phase 5 — health, auth/profile, farms/zones/context, NASA POWER scans, job status, daily observations, the four-indicator environmental summary, the crop catalogue/profile/calendar APIs and the Phase 5.3 rotation evidence engine are live. Only NASA POWER is integrated; other datasets in the NASA Space Apps 2026 guide are evaluated but not integrated (`HACKATHON_DATA_SOURCE_MATRIX.md`). Simulations and gamification remain design-only.
 **Base URL:** `/api/v1/`  
 **Authentication:** JWT Bearer via `djangorestframework-simplejwt` 5.5.1 (implemented). All endpoints require a token except health, registration and token obtain/refresh.  
 **Format:** JSON  
@@ -28,7 +28,9 @@
 | `GET /data-jobs/{id}/` | ✅ Implemented (Phase 3E) |
 | `GET /farms/{id}/environment/daily/` | ✅ Implemented (Phase 3E) |
 | `GET /farms/{id}/environment/current/` | ✅ Implemented (Phase 4D) |
-| Sections 5–9 (crops, recommendations, simulations, gamification) | ⏳ Design-only |
+| `POST /farms/{id}/recommendations/`, `GET /recommendations/{id}/`, `/compare/`, `/explanation/` | ✅ Implemented (Phase 5.3); evidence-gated, owner-scoped, no scores |
+| Crop catalogue/profile/calendar APIs | ✅ Implemented (Phase 5.1–5.3); no approved production crop profiles/calendar yet |
+| Simulations and gamification | ⏳ Design-only |
 
 **Error responses:** validation failures use DRF's field-keyed shape `{"field": ["message", ...]}`;
 authentication failures use `{"detail": "..."}` with `401`, and cross-user access returns
@@ -891,29 +893,54 @@ Contract deferred; not part of MVP.
 ## 5. Crop Catalog
 
 ### GET `/api/v1/crops/` — P0
-Search sourced crop catalog. Query params: `region_code` (required), optional `season`, `water_class`, `crop_family`. Returns paginated `{id, code, name, scientific_name, crop_family, source_status, evidence_ids}` records; only reviewed/explicitly demo-labeled records are eligible for recommendations.
+Implemented in Phase 5.1/5.2. Authentication is required. `region_code` is required;
+an omitted value returns `400` (the catalogue is never implicitly unscoped).
+Returns `{count, next, previous, results}` where each result has `id`, `code`, `name`,
+`scientific_name`, `crop_family`, `source_status`, and `evidence_ids`. A crop is region-ready
+only when it has reviewer-approved traits (`approval_status = APPROVED`,
+`validation_status = VALID`) whose **reviewer-decided** applicability is `DIRECT`,
+`GENERAL`, or `TRANSFERABLE_LIMITED`; `US_SPECIFIC` evidence and unreviewed source claims are
+deliberately excluded. Current production result: empty, because no individual agricultural
+dataset is approved for import and no trait has passed review.
 
 ### GET `/api/v1/crops/{crop_id}/profiles/` — P0
-Return crop characteristics, applicability, validation status, and structured source references; absent traits are `null`/unknown.
+Implemented in Phase 5.1/5.2. Returns the list fields plus `characteristics` and
+`missing_characteristics`. Every characteristic preserves raw/normalized value and
+units (null stays null), cultivar/variety, temporal and geographic applicability,
+the source's applicability claim, `approval_status`, `approved_geographic_applicability`,
+`applicability_justification`, validation status, source record ID/URL and evidence reference.
+`source` contains dataset identifier, publisher, version, DOI, licence, attribution and
+official landing page URL. Internal source-file paths and import errors are never exposed.
 
-### GET `/api/v1/regions/{region_code}/crop-calendar/` — P0
-`region_code` is a stable slug backed by `agronomy.RegionAgronomyProfile`; no standalone `geography` model is required in the MVP. Returns `{region_code, country_code, timezone, calendar_version, seasons:[{season_code, label, start_month_day, end_month_day, crops:[{crop_code, planting_window, harvest_window, evidence_ids}]}]}`. Return `404` for an unknown/unconfigured code. Values must be sourced; no calendar is selected yet.
+### GET `/api/v1/regions/{region_code}/crop-calendar/` — P0 — implemented
+Returns only an approved `RegionAgronomyProfile`, including calendar version, source references, season dates, crop associations and evidence identifiers. An unknown or unapproved calendar returns `404`. No Gharbia calendar is currently approved, so `/EG-GH/crop-calendar/` returns `404` until reviewed evidence is entered.
 
 ---
 
 ## 6. Recommendations
 
-### POST `/api/v1/farms/{farm_id}/recommendations/` — P0
-Generate crop rotation recommendations.
+### POST `/api/v1/farms/{farm_id}/recommendations/` — P0 — Phase 5.3 implemented
+Generate a reproducible crop-rotation evidence assessment. Authentication is required and farm ownership is enforced (`404` for another user's farm).
 
-Stable strategy enum: `BASELINE`, `WATER_EFFICIENT`, `SOIL_REGENERATION`. Return exactly one option per enum when evidence supports all; otherwise return a documented `422` with missing evidence/constraints rather than fabricate a sequence. `BASELINE` exactly reproduces farmer-entered history over the same planning horizon. The strategy labels are intents, not fixed crop sequences. Planning horizon and region calendar are explicit. All scores/benefits in the schema example are illustrative fixtures, not verified results.
+**Request:** `region_code` is optional but must match the configured farm region, `planning_seasons` is 1–12 (default 4), and optional named `priority_weights` must sum to 1. No candidate crop sequence is accepted from the client.
 
-**Request:** `region_code` is optional but, if provided, must equal the farm's configured code; `planning_seasons` is a positive count; `priority_weights` is optional and named weights must sum to 1. The response records the selected calendar version and actual season dates.
+The current engine returns an explicit history-only `BASELINE` when sufficient unambiguous farmer history exists. It may also return evidence-feasible calendar sequences but does not rank them or assign them an intent. `WATER_EFFICIENT` and `SOIL_REGENERATION` strategies are not emitted until reviewed preference methods exist. Candidate alternatives come only from approved calendar/profile evidence. Missing information yields a persisted `201` assessment with `INSUFFICIENT_EVIDENCE`, not fabricated options or a `422`.
 
-**Response:** `201 Created`
+**Response:** `201 Created`, including when the correct result is `INSUFFICIENT_EVIDENCE`. The id identifies an immutable input/evidence snapshot; `input_sha256` plus `engine_version` permits audit and reproduction. Scores are always null and options may be empty. The pre-existing example below is illustrative only; it is not a factual output. In the current production state, the catalogue has no approved Gharbia profiles or calendar, so an empty `options` list and explicit `missing` reasons are expected.
 ```json
 {
-  "recommendation_id": "rec_abc123",
+  "recommendation_id": "<uuid>",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "missing": [
+    {"name": "regional_crop_calendar", "reason": "No approved, source-backed crop calendar is configured for EG-GH."},
+    {"name": "eligible_crop_profiles", "reason": "No approved source-backed crop profiles are available for this region."}
+  ],
+  "options": [],
+  "input_sha256": "<sha256>"
+}
+```
+
+<!-- Historical schema sketch only: not emitted by the implemented API. The contract above is authoritative.
   "farm_id": 42,
   "generated_at": "<UTC timestamp>",
   "engine_version": "rotation-v1.0",
@@ -975,10 +1002,18 @@ Stable strategy enum: `BASELINE`, `WATER_EFFICIENT`, `SOIL_REGENERATION`. Return
 }
 ```
 
-Each `evidence` item is structured: `evidence_id`, `dataset_product` (including version when known), `parameter`, `date_range`, `spatial_support`, `source_record_or_snapshot_id`, `processing_method_version`, `quality_status`, and claim-specific `relevance`. Claims reference evidence IDs; free-text source names alone are insufficient. Empty evidence cannot support a factual benefit claim.
+-->
 
-### GET `/api/v1/recommendations/{recommendation_id}/` — P0
-Retrieve a recommendation with full explanations.
+Each implemented option includes the exact crop sequence, relevant farmer history, sourced crop traits, evidence identifiers, evaluated/not-evaluated constraints, explicit data gaps, assumptions, and a null score. Environmental rows are stored with dates, parameter, units, product, quality and freshness, but are not used for suitability because no approved crop-period/threshold mapping currently exists.
+
+### GET `/api/v1/recommendations/{recommendation_id}/` — P0 — implemented
+Retrieve the stored reproducible assessment, evidence snapshot, missing data and limitations. Cross-user retrieval is `404`.
+
+### GET `/api/v1/recommendations/{recommendation_id}/explanation/` — implemented
+Retrieve the explanation and evidence/constraint provenance from the same immutable assessment.
+
+### GET `/api/v1/recommendations/{recommendation_id}/compare/?with={other_id}` — implemented
+Compare two owner-scoped assessment records and report whether their input hashes match. This does not produce an objective ranking or numeric score.
 
 ### GET `/api/v1/farms/{farm_id}/recommendations/` — P1
 Contract deferred; not part of MVP.
@@ -987,71 +1022,59 @@ Contract deferred; not part of MVP.
 
 ## 7. Simulations
 
-### POST `/api/v1/simulations/` — P0
-Create a scenario simulation run.
+Implemented in Phase 6 as **environment-only scenario simulation**. The earlier planned shape
+(0–100 gauges, crop-level horizons, `POST /api/v1/simulations/` with `farm_id` in the body) is
+superseded: no approved regional crop catalogue or calendar exists, and Phase 6 forbids scores.
+Crop-level requests are refused with `400`.
+
+All endpoints require authentication and are owner-scoped: anonymous is `401`, another
+farmer's farm or run is `404`.
+
+### POST `/api/v1/farms/{farm_id}/simulations/` — implemented
 
 **Request:**
 ```json
 {
-  "farm_id": 42,
-  "recommendation_id": "rec_abc123",
-  "option_type": "WATER_EFFICIENT",
-  "scenario_type": "DRY_SCENARIO",
-  "horizon_months": 24,
-  "time_nodes": [0, 6, 12, 24],
-  "calendar_version": "<region-calendar-version>",
-  "adjustments": {
-    "rainfall_change_percent": -15,
-    "temperature_change_c": 1.0
-  }
+  "scenario_mode": "CUSTOM",
+  "window_days": 30,
+  "temperature_delta_c": "2.00",
+  "rainfall_multiplier": "0.70"
 }
 ```
 
-> **Note:** `adjustments` are user-selected stress tests, NOT forecasts.
+- `scenario_mode`: `BASELINE`, `HOT_SCENARIO`, `DRY_SCENARIO`, `CUSTOM` (default `BASELINE`).
+- `HOT_SCENARIO` is fixed at `+2.00 °C`; `DRY_SCENARIO` is fixed at `rainfall × 0.70`.
+- `CUSTOM` accepts `temperature_delta_c` in `[-5.00, 5.00]` and `rainfall_multiplier` in
+  `[0.20, 2.00]`; at least one is required.
+- `window_days` is `1–366` (default 30) and ends at the farm's latest usable observation.
+- `planning_seasons`, `crop_codes`, `strategy` and similar keys return `400` because they need
+  an approved regional calendar that does not exist.
 
-**Response:** `201 Created`
-```json
-{
-  "simulation_id": "sim_xyz789",
-  "status": "COMPLETED",
-  "scenario_type": "DRY_SCENARIO",
-  "engine_version": "scenario-v1.0"
-}
-```
+**Response:** `201 Created` — stored run with `simulation_id`, `scenario`, `status`
+(`COMPLETED` or `INSUFFICIENT_EVIDENCE`), `baseline`, `steps`, `differences`, `comparison`
+(`score: null`, `ranked: false`), `crop_level_outcomes: "NOT_SIMULATED"`,
+`hypothetical_notice`, `limitations` and `input_sha256`.
 
-### GET `/api/v1/simulations/{simulation_id}/` — P0
-Get simulation summary.
+### GET `/api/v1/farms/{farm_id}/simulations/` — implemented
+Recent stored runs for one owned farm (`{count, results}`), newest first.
 
-### GET `/api/v1/simulations/{simulation_id}/steps/` — P0
-Get time-step details.
+### GET `/api/v1/simulations/{simulation_id}/` — implemented
+Stored run, including all steps.
 
-**Response:** `200 OK`
-```json
-{
-  "simulation_id": "sim_xyz789",
-  "steps": [
-    {
-      "step_index": 0,
-      "label": "Present",
-      "season": "Winter 2026/27",
-      "season_start_date": "<calendar-date>",
-      "season_end_date": "<calendar-date>",
-      "calendar_version": "<region-calendar-version>",
-      "crop": "Barley",
-      "gauges": {
-        "water_resilience": {"score": 74, "label": "Moderate-Good", "confidence": "medium"},
-        "heat_adaptability": {"score": 68, "label": "Moderate", "confidence": "medium"},
-        "soil_regeneration": {"score": 55, "label": "Moderate", "confidence": "low"},
-        "market_value": {"score": null, "label": "Unknown", "confidence": "none"}
-      },
-      "assumptions": ["Rainfall -15% from 2021-2025 seasonal mean"],
-      "data_category": "SCENARIO"
-    }
-  ]
-}
-```
+### GET `/api/v1/simulations/{simulation_id}/steps/` — implemented
+Stored checkpoints only (`{simulation_id, engine_version, steps, hypothetical_notice,
+crop_level_outcomes}`).
 
----
+Each step carries `checkpoint`, `label`, `horizon_months`, `as_of_date` (`null` until an
+approved calendar anchors a real date), `status`, `metrics`, `missing_inputs`,
+`applied_adjustments`, `assumptions` and `limitations`. Values are environment-only;
+missing observations stay `null`. No step claims a future observation or a forecast.
+
+### Determinism
+`input_sha256` is the SHA-256 of a canonical, sorted-key JSON snapshot of the farm id, engine
+version, scenario definition, thresholds and stored values. The same inputs and engine version
+produce byte-identical output and the same hash. Adjustments are labelled
+`HYPOTHETICAL` / `USER_DECLARED_ASSUMPTION` everywhere.
 
 ## 8. Strategy Commitment and Check-ins
 

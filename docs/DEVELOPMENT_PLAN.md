@@ -214,6 +214,11 @@ decision (Risk R13) is still open and affects only interpretation/copy, not the 
 
 **Dependencies:** Phase 3 complete
 
+**Release-gate verdict (2026-11-14):** CONDITIONAL — all Phase 4 logic and data-integrity
+tests pass (325 backend tests); remaining items are release activities (live browser E2E,
+live NASA staging scan, bundle optimisation) and an expired-token test. Evidence:
+[`PHASE_4_RELEASE_AUDIT.md`](PHASE_4_RELEASE_AUDIT.md).
+
 ---
 
 ### Phase 5 — Crop Knowledge Base and Recommendation Engine
@@ -237,6 +242,44 @@ decision (Risk R13) is still open and affects only interpretation/copy, not the 
 
 **Dependencies:** Phase 4 complete
 
+#### Phase 5.1/5.2 — provenance and verified knowledge storage (complete 2026-11-13)
+
+Implemented the additive `agronomy` data model and APIs: individually approved
+agricultural datasets, import audit/failure rows, source-record-deduplicated crop
+characteristics, provenance, validation status, geographic applicability, and
+authenticated crop/profile reads. Imports require a checksum and an explicit mapping
+for each verified source file; no generic Ag Data Commons schema or webpage scraping
+is used. No individual USDA Ag Data Commons dataset is yet approved, so no production
+crop traits or Gharbia calendar are seeded.
+
+#### Phase 5.3 — fail-closed rotation evidence engine (complete 2026-11-14)
+
+The engine provides pure deterministic validation, approved-source-gated candidate
+options, a history-only baseline, explicit missing-evidence/constraint reasons, and
+persisted input snapshots with engine version and SHA-256. Authenticated APIs generate,
+retrieve, compare, and explain assessments with farm-owner scoping. Scores are null;
+no objective ranking, yield, profit, or guaranteed soil benefit is claimed. Because
+production regional calendar/crop evidence is still absent, live requests correctly
+return `INSUFFICIENT_EVIDENCE` with no unsupported alternative sequences.
+
+Verified in the Docker/PostGIS runtime on 2026-11-14: 325 backend tests OK,
+`manage.py check` clean, `makemigrations --check --dry-run` clean; 61 frontend tests OK,
+lint clean, production build succeeded. Published to the `overfield` remote on
+`phase/5-rotation-engine`. Evidence and known gaps: [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md).
+
+#### Phase 6.0 — branch and slice plan (setup complete 2026-11-14)
+
+`phase/6-simulation` was created from the Phase 5 tip with this plan and
+[`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md).
+
+**Delivered 2026-11-14 (published to `overfield/phase/6-simulation`):** environment-only scenario simulation. `SimulationRun`
+and `SimulationStep` models, deterministic engine `phase6-env-1.0.0`, owner-scoped APIs under
+`/farms/{id}/simulations/` and `/simulations/{id}/`, and the React Scenario lab. Bounded
+`BASELINE` / `HOT_SCENARIO` / `DRY_SCENARIO` / `CUSTOM` modes; no scores, no forecast claim,
+no crop-level outcome. `WATER_EFFICIENT` and `SOIL_REGENERATION` are not implemented because
+they require crop evidence that does not exist. Verified: 342 backend tests, 66 frontend
+tests, lint and build clean. Evidence: [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
+
 ---
 
 ### Phase 6 — Scenario Simulation and Strategy Comparison
@@ -257,6 +300,19 @@ decision (Risk R13) is still open and affects only interpretation/copy, not the 
 - Simulation output is reproducible for same inputs and engine version
 
 **Dependencies:** Phase 5 complete
+
+---
+
+#### Phase 7.0 — branch and slice plan (setup complete 2026-11-14)
+
+`phase/7-farmer-experience` was created from the published Phase 6 tip `7c675b8` with
+[`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md). No Phase 7 feature code exists yet.
+
+**Scope confirmed at setup:** the backend endpoints for scans, job status, daily
+observations, the four-indicator summary, rotation and simulation already exist and are
+tested. Phase 7 is a frontend integration phase: add `src/api/environment.ts`, the scan
+trigger/polling flow, the honest environmental dashboard, farm-overview journey links and a
+responsive/accessibility pass. No new datasets, scores, crop claims or contract changes.
 
 ---
 

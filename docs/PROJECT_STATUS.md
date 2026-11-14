@@ -1,8 +1,8 @@
 # Overfield — Project Status
 
-**Last updated:** 2026-11-13
-**Current phase:** Phase 4 — Environmental Indicators and Data Fusion
-**Phase status:** ✅ Phase 4A–4E complete. ✅ Phase 4F (data-source documentation alignment) complete, uncommitted, awaiting review.
+**Last updated:** 2026-11-14
+**Current phase:** Phase 8 — Strategy Commitment, Seasonal Check-Ins, Gamification & Reward Mockup
+**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified. ✅ Phase 6 environment-only scenario simulation published. ✅ Phase 7 farmer-facing Farm Environmental Dashboard complete and verified (84 frontend tests, 342 backend tests). 🚀 Phase 8 startup underway on `phase/8-gamification-rewards`. Production rotation and crop-level simulation remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md), [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md), [`PHASE_7_STATUS.md`](PHASE_7_STATUS.md) and [`PHASE_8_SLICE_PLAN.md`](PHASE_8_SLICE_PLAN.md).
 
 > **Phases 1–3 are complete and merged into `develop`.** Phase 1 delivered the Docker infrastructure,
 > Django/DRF foundation, React/Vite frontend and the Celery worker. Phase 2 delivered accounts, JWT, the
@@ -17,17 +17,17 @@
 
 | Item | Actual status |
 |---|---|
-| Repository | Git repository initialized; current branch is `phase/4-environmental-engine` |
-| Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management`, `phase/3-nasa-integration`, `phase/4-environmental-engine` |
-| Remote | `origin` configured to `https://github.com/Amr-767/nasa.git`; Phase 0–3 branches published and tracking their origin counterparts |
-| Backend (`backend/`) | Django 6.0.10 + GeoDjango (`django.contrib.gis`) with the PostGIS backend; `config/` split settings, DRF + SimpleJWT, CORS, `apps.core` (health, `core.ping`), `apps.accounts` (profile/auth), `apps.farms` (farms/zones/context), `apps.earth_data` (POWER provider, models, Celery ingestion, REST API), `apps.indicators` (WATER/HEAT/SOIL/MARKET + summary API), `domain_services` (geometry). Runs in the `backend` Compose service (ADR-018) |
-| Frontend (`frontend/`) | React 19 + TypeScript + Vite + React Router 7 + TanStack Query 5 + Leaflet 1.9/Leaflet-Geoman: auth screens, 5-step onboarding wizard, farm list/detail, env-driven API client with JWT handling. No indicator UI yet |
+| Repository | Git repository initialized; Phase 5 branch is `phase/5-rotation-engine` |
+| Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management`, `phase/3-nasa-integration`, `phase/4-environmental-engine`, `phase/5-rotation-engine`, `phase/6-simulation`, `phase/7-farmer-experience` |
+| Remote | `origin` → `https://github.com/Amr-767/nasa.git` (Phase 4 baseline); `overfield` → `https://github.com/Amr-767/Overfield.git` (rebranded Overfield repository, receives Phase 5, Phase 6 and Phase 7 branches) |
+| Backend (`backend/`) | Django 6.0.10 + GeoDjango (`django.contrib.gis`) with the PostGIS backend; `config/` split settings, DRF + SimpleJWT, CORS, `apps.core` (health, `core.ping`), `apps.accounts` (profile/auth), `apps.farms` (farms/zones/context), `apps.earth_data` (POWER provider, models, Celery ingestion, REST API), `apps.agronomy` (source-specific agricultural dataset registry, audit imports, crop traits, read APIs), `apps.indicators` (WATER/HEAT/SOIL/MARKET + summary API), `apps.simulations` (environment-only scenario simulation), `domain_services` (geometry). Runs in the `backend` Compose service (ADR-018) |
+| Frontend (`frontend/`) | React 19 + TypeScript + Vite + React Router 7 + TanStack Query 5 + Leaflet 1.9/Leaflet-Geoman: auth screens, 5-step onboarding wizard, farm list/detail, rotation explorer, scenario lab, env-driven API client with JWT handling. No environmental-indicator dashboard yet |
 | Documentation (`docs/`) | Master Handoff, Phased Coding Playbook, Phase 0 docs, Git workflow, review, risk register, environmental-indicator methodology and the NASA data-source matrix present |
 | `README.md` | Documents infrastructure, backend, worker and frontend setup plus the Phase 4 indicator API and the integrated-data-source scope |
 | `.gitignore` | Present; `.env` and `.venv/` ignored |
 | `.env.example` | Present with Postgres/Redis/Django placeholders; local `.env` is ignored |
 | Dependencies | Backend pinned in `backend/requirements.txt` (Celery + redis included); frontend pinned in `frontend/package.json` + `package-lock.json`; virtualenv and `node_modules` are local-only |
-| Tests | Backend: **286 Django tests** passing. Frontend: **53 Vitest tests** passing |
+| Tests | Backend: **342 Django tests** passing. Frontend: **66 Vitest tests** passing |
 | Frontend deps | `react-router-dom`, `@tanstack/react-query`, `leaflet`, `react-leaflet`, `@geoman-io/leaflet-geoman-free`; test-only `jsdom`, `@testing-library/react`, `@testing-library/user-event` |
 | Database | Docker Compose `postgis/postgis:17-3.5` (PostgreSQL 17.5, PostGIS 3.5.2); Django uses `django.contrib.gis.db.backends.postgis` |
 | Backend runtime | Docker image `python:3.14-slim` (Debian 13) with GDAL 3.10.3, GEOS 3.13.1, PROJ 9.6.0; `backend/Dockerfile` + `backend/.dockerignore`; the host venv is editor-only |
@@ -44,6 +44,11 @@
 - [`DATA_PROVENANCE.md`](DATA_PROVENANCE.md)
 - [`ENVIRONMENTAL_INDICATORS.md`](ENVIRONMENTAL_INDICATORS.md)
 - [`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md)
+- [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md)
+- [`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md)
+- [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md)
+- [`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md)
+- [`PHASE_4_RELEASE_AUDIT.md`](PHASE_4_RELEASE_AUDIT.md)
 - [`RISK_REGISTER.md`](RISK_REGISTER.md)
 - [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md)
 
@@ -954,6 +959,31 @@ soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `n
 > Sentinel-2; seasonal cloud statistics; Egyptian farm-size distribution; complete licence terms; exact
 > current versions of every SMAP L4/ECOSTRESS product. These need a read-only Phase 5 validation spike.
 
+## Phase 5.3 — Crop Rotation Evidence Engine (implementation in this checkout)
+
+- Added a pure deterministic evidence-readiness evaluator. It distinguishes missing history,
+  ambiguous history, missing crop codes, missing regional calendars/profiles, incomplete
+  environmental provenance, stale NASA inputs, and unsupported/unreferenced constraints.
+- A farmer-history baseline is shown only when the exact requested horizon is present and
+  is explicitly labeled as past farmer-provided history, not a future recommendation.
+- Candidate options require sourced calendar dates/evidence, eligible regional profiles and
+  evidence-linked traits. Hard exclusions are honored only for approved, source- and
+  evidence-backed supported rule types. Unsupported constraints are reported, not applied.
+- No numeric scores, arbitrary weighted ranking, yield/profit estimates, or promised soil
+  outcomes. Current catalogue/calendar emptiness yields empty alternatives and explicit
+  `INSUFFICIENT_EVIDENCE`.
+- Added owner-scoped routes generate, retrieve, compare, and return explanation/provenance.
+  Inputs, recent stored environmental evidence, crop-history/context snapshot, engine version,
+  and SHA-256 are persisted.
+- Added migration `0004_sync_phase5_models` to align the Phase 5 models with the migrations.
+  It is additive and no historical migration was edited.
+- Verification (2026-11-14, Docker/PostGIS runtime): `python manage.py test tests` →
+  **325 tests OK**; `manage.py check` clean; `makemigrations --check --dry-run` → no changes.
+  Frontend: **61 tests OK**, `oxlint` clean, production build succeeded.
+- Known gap closed: candidate selection now requires `approval_status = APPROVED` and
+  reviewer-decided geographic applicability; a source's `VALID` claim alone is never
+  region-ready. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md) §4.
+
 ## Open Decisions and Dependencies
 
 | Decision | Status | Owner |
@@ -985,18 +1015,32 @@ soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `n
 - Phase 3 published on `phase/3-nasa-integration`: `0f9ee8f` (client + models), `3f6a1ee` (persistence + Celery),
   `d2fdcb8` (REST API), `063c776` (provenance/contracts/QA docs).
 - Phase 3 merged into `develop` with `--no-ff` (`37db0b3`) and pushed.
-- `phase/4-environmental-engine` created from the merged `develop` and pushed; current branch.
+- `phase/4-environmental-engine` created from the merged `develop` and published.
+- Phase 5 (`crop-intelligence-rotation-engine`) committed and published to the `overfield`
+  remote as `phase/5-rotation-engine`; `origin` remains at the Phase 4 baseline by design.
+- `phase/6-simulation` created from the Phase 5 tip and published to `overfield` as `7c675b8`
+  (backend, frontend and docs commits). `origin` remains at the Phase 4 baseline by design.
+- `phase/7-farmer-experience` created from the published Phase 6 tip `7c675b8` with a
+  setup-only slice plan; no Phase 7 feature code is included yet.
 - `main` is still at the Phase 0 baseline (`d59156b`). Promote `develop` → `main` once the team approves
   Phases 1–3 (optionally tagged `phase-3-approved`); nothing is forced or rewritten.
 - No milestone tags created yet.
 
 ## Next recommended task
 
-1. **Review Phase 4F** (this documentation alignment) and commit it on `phase/4-environmental-engine`.
-2. **Then decide on a second precipitation source.** A GPM IMERG integration is feasible — V07B covers
-   Gharbia at 0.1° — but the current schema cannot represent product run/version, valid-pixel coverage,
-   aggregation method or QA reason, and `(farm, source, date)` uniqueness blocks anything beyond one
-   scalar per source per day. Any implementation must therefore start with a **minimum architecture
-   proposal** (matrix §8), not with a provider adapter.
-3. **Phase 5 — Crop knowledge base and rotation engine.** Requires the team to source and review the
-   Gharbia crop catalogue and season calendar (Risk R6/R13); no crop-specific thresholds exist yet.
+1. **Complete the release activities in the Phase 4 audit.** The verdict is
+   **CONDITIONAL**: `docs/PHASE_4_RELEASE_AUDIT.md` records the evidence and the three
+   remaining release activities (live browser E2E, live NASA staging scan, bundle
+   optimisation) plus the expired-token test gap.
+2. **Source and review the Gharbia crop catalogue and calendar** (Risk R6/R13). No crop trait
+   or season window may be entered without a named, approved dataset and reviewer.
+3. **Phase 6 — environment-only scenario simulation is published** on
+   `overfield/phase/6-simulation`. Bounded, reproducible, labelled `HYPOTHETICAL`; crop-level
+   comparison stays refused until the catalogue/calendar exists. See
+   [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
+4. **Start Phase 7 slice 7.1** on `phase/7-farmer-experience`: add `src/api/environment.ts`
+   and the scan trigger/polling UI with loading, success, partial and failure tests. See
+   [`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md).
+5. **Keep production rotation fail-closed.** Until reviewed crop evidence exists, the API
+   must keep returning `INSUFFICIENT_EVIDENCE` with named missing inputs; this is asserted
+   by tests, not a placeholder.

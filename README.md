@@ -13,6 +13,37 @@ Overfield transforms NASA Earth observation data and agricultural context into u
 - **Amr** — Backend, full-stack architecture, NASA integration and deployment
 - **Haneen** — Frontend, React, UI/UX and frontend integration
 
+## Agricultural knowledge status (Phase 5.1–5.3)
+
+The backend has a source-specific crop-knowledge catalogue, a safe repeatable dataset
+importer, and a fail-closed rotation **evidence-readiness** engine. Crop knowledge is
+kept separate from NASA environmental observations and retains
+dataset/version/publisher/licence, record-level evidence, raw values and units, and
+geographic applicability.
+
+The production catalogue is currently empty: no individual USDA Ag Data Commons
+dataset has been approved in this repository, and Overfield does not manufacture crop
+traits or use U.S.-specific evidence as an Egyptian calendar. Rotation requests
+therefore return `INSUFFICIENT_EVIDENCE` with no alternatives rather than a confident
+recommendation. The engine emits **no scores or ranking**, and flavour-specific
+benefits (yield, profit, soil outcomes) are never claimed.
+
+> **Review gate:** imported source claims are never trusted on their own. Only a
+> staff-approved trait (`approval_status = APPROVED` with reviewer-decided geographic
+> applicability) can appear in the region catalogue or reach the rotation engine's
+> candidate profiles. See [`docs/PHASE_5_STATUS.md`](docs/PHASE_5_STATUS.md) §4.
+
+```powershell
+# JWT required; farm endpoints are owner-scoped
+curl "http://127.0.0.1:8000/api/v1/crops/?region_code=EG-GH" -H "Authorization: Bearer $TOKEN"
+curl -X POST "http://127.0.0.1:8000/api/v1/farms/4/recommendations/" -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"planning_seasons":4}'
+```
+
+See [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md) for the approval and import
+requirements and [`docs/PHASE_5_STATUS.md`](docs/PHASE_5_STATUS.md) for verification
+evidence and known limitations.
+
 ## Prerequisites
 
 - Docker Desktop running with Linux containers enabled
@@ -296,7 +327,7 @@ is stored as farmer-reported with low spatial precision.
 cd frontend
 npm run build   # tsc -b && vite build
 npm run lint    # oxlint
-npm test        # vitest (53 tests)
+npm test        # vitest (61 tests)
 ```
 
 ## Environmental indicators (Phase 4)
@@ -341,7 +372,9 @@ access methods and limitations:
 
 ## Not implemented yet
 
-- Crop knowledge base, rotation recommendations and simulations (Phases 5–6)
+- Crop-level scenario simulation and strategy comparison: blocked by the missing approved
+  Gharbia catalogue/calendar. Environment-only scenario simulation **is** implemented
+  (`/simulations`, see [`docs/PHASE_6_STATUS.md`](docs/PHASE_6_STATUS.md)).
 - Frontend screens for the environmental indicators and the summary endpoint
 - Zones editing UI, farm editing UI, and farm deletion from the SPA
 - Leaderboards, rewards and verification (Phase 8)

@@ -16,12 +16,23 @@ export interface ApiFieldErrors {
 export class ApiError extends Error {
   readonly status?: number
   readonly fieldErrors?: ApiFieldErrors
+  /**
+   * Parsed JSON error body when the endpoint returns structured detail
+   * (for example the scan API's 409 `already_running` job handle).
+   */
+  readonly payload?: unknown
 
-  constructor(message: string, status?: number, fieldErrors?: ApiFieldErrors) {
+  constructor(
+    message: string,
+    status?: number,
+    fieldErrors?: ApiFieldErrors,
+    payload?: unknown,
+  ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.fieldErrors = fieldErrors
+    this.payload = payload
   }
 
   /** First error message per field, useful for inline form messages. */
