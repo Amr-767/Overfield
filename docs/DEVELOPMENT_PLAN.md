@@ -237,6 +237,36 @@ decision (Risk R13) is still open and affects only interpretation/copy, not the 
 
 **Dependencies:** Phase 4 complete
 
+#### Phase 5.1/5.2 — provenance and verified knowledge storage (complete 2026-11-13)
+
+Implemented the additive `agronomy` data model and APIs: individually approved
+agricultural datasets, import audit/failure rows, source-record-deduplicated crop
+characteristics, provenance, validation status, geographic applicability, and
+authenticated crop/profile reads. Imports require a checksum and an explicit mapping
+for each verified source file; no generic Ag Data Commons schema or webpage scraping
+is used. No individual USDA Ag Data Commons dataset is yet approved, so no production
+crop traits or Gharbia calendar are seeded.
+
+#### Phase 5.3 — fail-closed rotation evidence engine (complete 2026-11-14)
+
+The engine provides pure deterministic validation, approved-source-gated candidate
+options, a history-only baseline, explicit missing-evidence/constraint reasons, and
+persisted input snapshots with engine version and SHA-256. Authenticated APIs generate,
+retrieve, compare, and explain assessments with farm-owner scoping. Scores are null;
+no objective ranking, yield, profit, or guaranteed soil benefit is claimed. Because
+production regional calendar/crop evidence is still absent, live requests correctly
+return `INSUFFICIENT_EVIDENCE` with no unsupported alternative sequences.
+
+Verified in the Docker/PostGIS runtime on 2026-11-14: 321 backend tests OK,
+`manage.py check` clean, `makemigrations --check --dry-run` clean; 61 frontend tests OK,
+lint clean, production build succeeded. Published to the `overfield` remote on
+`phase/5-rotation-engine`. Evidence and known gaps: [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md).
+
+#### Phase 6.0 — branch and slice plan (setup complete 2026-11-14)
+
+`phase/6-simulation` was created from the Phase 5 tip with this plan and
+[`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md). No Phase 6 feature code exists yet.
+
 ---
 
 ### Phase 6 — Scenario Simulation and Strategy Comparison

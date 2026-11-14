@@ -6,7 +6,7 @@
 
 ## ADR-001: Modular Monolith Architecture
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-11-04
 
 **Context:** The team has 3 members and hackathon time constraints. Microservices add deployment complexity, inter-service communication, and operational overhead.
@@ -553,6 +553,19 @@ market has no observation period.
 
 ---
 
+## ADR-027: Fail-closed, evidence-gated rotation assessment
+
+**Status:** Accepted for Phase 5.3 implementation
+**Date:** 2026-11-14
+
+**Decision:** Rotation computation is deterministic and source-gated. A candidate may be presented only when the regional calendar, crop profile traits, temporal applicability, and evidence references are present and eligible for the farm region. Hard exclusions require an explicitly approved rule with both a source and evidence identifier. Missing traits are not treated as pass/fail. No universal rules, 0–100 scores, yield/profit estimates, or objective ranking are introduced. The historical baseline is returned only when farmer history exactly covers the requested horizon and is labeled historical/user-provided, not a future recommendation.
+
+Assessment input snapshots, engine version and SHA-256 are persisted for audit. An assessment with insufficient inputs is a successful, retrievable result with `INSUFFICIENT_EVIDENCE`, not a fabricated sequence or untraceable server error. NASA POWER rows are snapshotted with their actual source, parameter, unit, date, quality and freshness; they are not used for suitability until a sourced regional calendar defines the relevant growth periods and compatible crop thresholds exist.
+
+**Consequences:** With the current empty production catalogue and no approved Gharbia calendar, the API correctly returns no factual alternatives. Adding candidate/constraint content requires approved evidence and review; the calculation service remains pure and independently tested.
+
+---
+
 ## Phase 0 Decision Log and Open Decisions
 
 **Decision date:** 2026-11-05. This log records documentation-level decisions; proposed choices remain provisional where noted.
@@ -568,4 +581,23 @@ market has no observation period.
 - **Backend run location:** resolved 2026-11-07 — Django runs in Docker for GeoDjango (ADR-018), replacing host-local Django from ADR-014.
 - **User model:** resolved 2026-11-07 — the built-in `auth.User` is the single identity model, extended by `accounts.FarmerProfile` (ADR-019); no custom user model or second auth system.
 - **Data completeness/confidence:** Contract returns explicit assessment states and method metadata; numeric values are illustrative only until denominator, weighting, and evidence-quality methods are approved.
+
+---
+
+## ADR-026: Agricultural knowledge is source-specific, not an environmental observation
+
+**Status:** Accepted
+**Date:** 2026-11-13
+
+**Decision:** `agronomy` owns `AgriculturalDataset`, `DatasetImport`, `Crop`, and
+`CropCharacteristic`. It does not reuse `earth_data.DatasetSource` or
+`EnvironmentalObservation`. An import is allowed only for an individually approved
+dataset and an explicit mapping verified against that dataset's file structure.
+
+**Consequences:** Every trait keeps its raw source value, unit, source record,
+dataset/version/publisher/licence/attribution and geographic applicability. Re-import
+is checksum-idempotent and source-record duplicates are constrained in the database.
+No current USDA Ag Data Commons dataset is approved, so the production crop catalogue
+is intentionally empty. U.S.-specific evidence cannot become an Egypt/Gharbia crop
+calendar or recommendation input merely because its species name matches.
 
