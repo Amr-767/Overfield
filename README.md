@@ -372,7 +372,9 @@ access methods and limitations:
 
 ## Not implemented yet
 
-- Scenario simulation and strategy comparison (Phase 6)
+- Crop-level scenario simulation and strategy comparison: blocked by the missing approved
+  Gharbia catalogue/calendar. Environment-only scenario simulation **is** implemented
+  (`/simulations`, see [`docs/PHASE_6_STATUS.md`](docs/PHASE_6_STATUS.md)).
 - Frontend screens for the environmental indicators and the summary endpoint
 - Zones editing UI, farm editing UI, and farm deletion from the SPA
 - Leaderboards, rewards and verification (Phase 8)

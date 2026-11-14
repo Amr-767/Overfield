@@ -2,7 +2,10 @@
 
 **Date:** 2026-11-14
 **Branch:** `phase/6-simulation` (created from the Phase 5 tip)
-**Status:** Setup only. No Phase 6 feature code, model, migration or route exists yet.
+**Status:** Slice 6.2/6.3/6.5 delivered as **environment-only** scenario simulation
+(`apps.simulations`, engine `phase6-env-1.0.0`, Scenario lab page). Crop-level and strategy
+comparison (6.4) remain blocked by the missing approved Gharbia catalogue/calendar and are
+refused with `400`. Evidence: [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
 
 This document fixes the scope, order of work and acceptance gates for Phase 6 —
 Scenario Simulation and Strategy Comparison — before any implementation begins.

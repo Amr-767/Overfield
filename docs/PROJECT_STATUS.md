@@ -1,8 +1,8 @@
 # Overfield — Project Status
 
 **Last updated:** 2026-11-14
-**Current phase:** Phase 5.3 — Crop rotation evidence engine (published); Phase 6 setup prepared
-**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified in the Docker/PostGIS runtime (325 backend tests, 61 frontend tests). Production rotation options remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md).
+**Current phase:** Phase 6 — environment-only scenario simulation published to `overfield/phase/6-simulation`; Phase 7 ready to start
+**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified in the Docker/PostGIS runtime. ✅ Phase 6 environment-only scenario simulation implemented and verified (342 backend tests, 66 frontend tests). Production rotation and crop-level simulation remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md) and [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
 
 > **Phases 1–3 are complete and merged into `develop`.** Phase 1 delivered the Docker infrastructure,
 > Django/DRF foundation, React/Vite frontend and the Celery worker. Phase 2 delivered accounts, JWT, the
@@ -20,14 +20,14 @@
 | Repository | Git repository initialized; Phase 5 branch is `phase/5-rotation-engine` |
 | Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management`, `phase/3-nasa-integration`, `phase/4-environmental-engine`, `phase/5-rotation-engine`, `phase/6-simulation` |
 | Remote | `origin` → `https://github.com/Amr-767/nasa.git` (Phase 4 baseline); `overfield` → `https://github.com/Amr-767/Overfield.git` (rebranded Overfield repository, receives Phase 5 and Phase 6 branches) |
-| Backend (`backend/`) | Django 6.0.10 + GeoDjango (`django.contrib.gis`) with the PostGIS backend; `config/` split settings, DRF + SimpleJWT, CORS, `apps.core` (health, `core.ping`), `apps.accounts` (profile/auth), `apps.farms` (farms/zones/context), `apps.earth_data` (POWER provider, models, Celery ingestion, REST API), `apps.agronomy` (source-specific agricultural dataset registry, audit imports, crop traits, read APIs), `apps.indicators` (WATER/HEAT/SOIL/MARKET + summary API), `domain_services` (geometry). Runs in the `backend` Compose service (ADR-018) |
-| Frontend (`frontend/`) | React 19 + TypeScript + Vite + React Router 7 + TanStack Query 5 + Leaflet 1.9/Leaflet-Geoman: auth screens, 5-step onboarding wizard, farm list/detail, rotation explorer, env-driven API client with JWT handling. No environmental-indicator UI yet |
+| Backend (`backend/`) | Django 6.0.10 + GeoDjango (`django.contrib.gis`) with the PostGIS backend; `config/` split settings, DRF + SimpleJWT, CORS, `apps.core` (health, `core.ping`), `apps.accounts` (profile/auth), `apps.farms` (farms/zones/context), `apps.earth_data` (POWER provider, models, Celery ingestion, REST API), `apps.agronomy` (source-specific agricultural dataset registry, audit imports, crop traits, read APIs), `apps.indicators` (WATER/HEAT/SOIL/MARKET + summary API), `apps.simulations` (environment-only scenario simulation), `domain_services` (geometry). Runs in the `backend` Compose service (ADR-018) |
+| Frontend (`frontend/`) | React 19 + TypeScript + Vite + React Router 7 + TanStack Query 5 + Leaflet 1.9/Leaflet-Geoman: auth screens, 5-step onboarding wizard, farm list/detail, rotation explorer, scenario lab, env-driven API client with JWT handling. No environmental-indicator dashboard yet |
 | Documentation (`docs/`) | Master Handoff, Phased Coding Playbook, Phase 0 docs, Git workflow, review, risk register, environmental-indicator methodology and the NASA data-source matrix present |
 | `README.md` | Documents infrastructure, backend, worker and frontend setup plus the Phase 4 indicator API and the integrated-data-source scope |
 | `.gitignore` | Present; `.env` and `.venv/` ignored |
 | `.env.example` | Present with Postgres/Redis/Django placeholders; local `.env` is ignored |
 | Dependencies | Backend pinned in `backend/requirements.txt` (Celery + redis included); frontend pinned in `frontend/package.json` + `package-lock.json`; virtualenv and `node_modules` are local-only |
-| Tests | Backend: **325 Django tests** passing. Frontend: **61 Vitest tests** passing |
+| Tests | Backend: **342 Django tests** passing. Frontend: **66 Vitest tests** passing |
 | Frontend deps | `react-router-dom`, `@tanstack/react-query`, `leaflet`, `react-leaflet`, `@geoman-io/leaflet-geoman-free`; test-only `jsdom`, `@testing-library/react`, `@testing-library/user-event` |
 | Database | Docker Compose `postgis/postgis:17-3.5` (PostgreSQL 17.5, PostGIS 3.5.2); Django uses `django.contrib.gis.db.backends.postgis` |
 | Backend runtime | Docker image `python:3.14-slim` (Debian 13) with GDAL 3.10.3, GEOS 3.13.1, PROJ 9.6.0; `backend/Dockerfile` + `backend/.dockerignore`; the host venv is editor-only |
@@ -46,6 +46,7 @@
 - [`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md)
 - [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md)
 - [`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md)
+- [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md)
 - [`PHASE_4_RELEASE_AUDIT.md`](PHASE_4_RELEASE_AUDIT.md)
 - [`RISK_REGISTER.md`](RISK_REGISTER.md)
 - [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md)
@@ -1030,9 +1031,10 @@ soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `n
    optimisation) plus the expired-token test gap.
 2. **Source and review the Gharbia crop catalogue and calendar** (Risk R6/R13). No crop trait
    or season window may be entered without a named, approved dataset and reviewer.
-3. **Phase 6 — Scenario Simulation and Strategy Comparison.** Scenarios must be explicit,
-   bounded and reproducible; hypothetical adjustments must never be labelled as NASA
-   forecast. See `DEVELOPMENT_PLAN.md` and the branch `phase/6-simulation`.
+3. **Phase 6 — environment-only scenario simulation is published** on
+   `overfield/phase/6-simulation`. Bounded, reproducible, labelled `HYPOTHETICAL`; crop-level
+   comparison stays refused until the catalogue/calendar exists. See
+   [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
 4. **Keep production rotation fail-closed.** Until reviewed crop evidence exists, the API
    must keep returning `INSUFFICIENT_EVIDENCE` with named missing inputs; this is asserted
    by tests, not a placeholder.

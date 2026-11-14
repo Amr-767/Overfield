@@ -270,7 +270,15 @@ lint clean, production build succeeded. Published to the `overfield` remote on
 #### Phase 6.0 — branch and slice plan (setup complete 2026-11-14)
 
 `phase/6-simulation` was created from the Phase 5 tip with this plan and
-[`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md). No Phase 6 feature code exists yet.
+[`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md).
+
+**Delivered 2026-11-14 (published to `overfield/phase/6-simulation`):** environment-only scenario simulation. `SimulationRun`
+and `SimulationStep` models, deterministic engine `phase6-env-1.0.0`, owner-scoped APIs under
+`/farms/{id}/simulations/` and `/simulations/{id}/`, and the React Scenario lab. Bounded
+`BASELINE` / `HOT_SCENARIO` / `DRY_SCENARIO` / `CUSTOM` modes; no scores, no forecast claim,
+no crop-level outcome. `WATER_EFFICIENT` and `SOIL_REGENERATION` are not implemented because
+they require crop evidence that does not exist. Verified: 342 backend tests, 66 frontend
+tests, lint and build clean. Evidence: [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
 
 ---
 

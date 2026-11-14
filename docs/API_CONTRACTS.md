@@ -1022,71 +1022,59 @@ Contract deferred; not part of MVP.
 
 ## 7. Simulations
 
-### POST `/api/v1/simulations/` — P0
-Create a scenario simulation run.
+Implemented in Phase 6 as **environment-only scenario simulation**. The earlier planned shape
+(0–100 gauges, crop-level horizons, `POST /api/v1/simulations/` with `farm_id` in the body) is
+superseded: no approved regional crop catalogue or calendar exists, and Phase 6 forbids scores.
+Crop-level requests are refused with `400`.
+
+All endpoints require authentication and are owner-scoped: anonymous is `401`, another
+farmer's farm or run is `404`.
+
+### POST `/api/v1/farms/{farm_id}/simulations/` — implemented
 
 **Request:**
 ```json
 {
-  "farm_id": 42,
-  "recommendation_id": "rec_abc123",
-  "option_type": "WATER_EFFICIENT",
-  "scenario_type": "DRY_SCENARIO",
-  "horizon_months": 24,
-  "time_nodes": [0, 6, 12, 24],
-  "calendar_version": "<region-calendar-version>",
-  "adjustments": {
-    "rainfall_change_percent": -15,
-    "temperature_change_c": 1.0
-  }
+  "scenario_mode": "CUSTOM",
+  "window_days": 30,
+  "temperature_delta_c": "2.00",
+  "rainfall_multiplier": "0.70"
 }
 ```
 
-> **Note:** `adjustments` are user-selected stress tests, NOT forecasts.
+- `scenario_mode`: `BASELINE`, `HOT_SCENARIO`, `DRY_SCENARIO`, `CUSTOM` (default `BASELINE`).
+- `HOT_SCENARIO` is fixed at `+2.00 °C`; `DRY_SCENARIO` is fixed at `rainfall × 0.70`.
+- `CUSTOM` accepts `temperature_delta_c` in `[-5.00, 5.00]` and `rainfall_multiplier` in
+  `[0.20, 2.00]`; at least one is required.
+- `window_days` is `1–366` (default 30) and ends at the farm's latest usable observation.
+- `planning_seasons`, `crop_codes`, `strategy` and similar keys return `400` because they need
+  an approved regional calendar that does not exist.
 
-**Response:** `201 Created`
-```json
-{
-  "simulation_id": "sim_xyz789",
-  "status": "COMPLETED",
-  "scenario_type": "DRY_SCENARIO",
-  "engine_version": "scenario-v1.0"
-}
-```
+**Response:** `201 Created` — stored run with `simulation_id`, `scenario`, `status`
+(`COMPLETED` or `INSUFFICIENT_EVIDENCE`), `baseline`, `steps`, `differences`, `comparison`
+(`score: null`, `ranked: false`), `crop_level_outcomes: "NOT_SIMULATED"`,
+`hypothetical_notice`, `limitations` and `input_sha256`.
 
-### GET `/api/v1/simulations/{simulation_id}/` — P0
-Get simulation summary.
+### GET `/api/v1/farms/{farm_id}/simulations/` — implemented
+Recent stored runs for one owned farm (`{count, results}`), newest first.
 
-### GET `/api/v1/simulations/{simulation_id}/steps/` — P0
-Get time-step details.
+### GET `/api/v1/simulations/{simulation_id}/` — implemented
+Stored run, including all steps.
 
-**Response:** `200 OK`
-```json
-{
-  "simulation_id": "sim_xyz789",
-  "steps": [
-    {
-      "step_index": 0,
-      "label": "Present",
-      "season": "Winter 2026/27",
-      "season_start_date": "<calendar-date>",
-      "season_end_date": "<calendar-date>",
-      "calendar_version": "<region-calendar-version>",
-      "crop": "Barley",
-      "gauges": {
-        "water_resilience": {"score": 74, "label": "Moderate-Good", "confidence": "medium"},
-        "heat_adaptability": {"score": 68, "label": "Moderate", "confidence": "medium"},
-        "soil_regeneration": {"score": 55, "label": "Moderate", "confidence": "low"},
-        "market_value": {"score": null, "label": "Unknown", "confidence": "none"}
-      },
-      "assumptions": ["Rainfall -15% from 2021-2025 seasonal mean"],
-      "data_category": "SCENARIO"
-    }
-  ]
-}
-```
+### GET `/api/v1/simulations/{simulation_id}/steps/` — implemented
+Stored checkpoints only (`{simulation_id, engine_version, steps, hypothetical_notice,
+crop_level_outcomes}`).
 
----
+Each step carries `checkpoint`, `label`, `horizon_months`, `as_of_date` (`null` until an
+approved calendar anchors a real date), `status`, `metrics`, `missing_inputs`,
+`applied_adjustments`, `assumptions` and `limitations`. Values are environment-only;
+missing observations stay `null`. No step claims a future observation or a forecast.
+
+### Determinism
+`input_sha256` is the SHA-256 of a canonical, sorted-key JSON snapshot of the farm id, engine
+version, scenario definition, thresholds and stored values. The same inputs and engine version
+produce byte-identical output and the same hash. Adjustments are labelled
+`HYPOTHETICAL` / `USER_DECLARED_ASSUMPTION` everywhere.
 
 ## 8. Strategy Commitment and Check-ins
 
