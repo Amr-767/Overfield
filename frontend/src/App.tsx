@@ -10,6 +10,7 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { RotationExplorerPage } from './pages/RotationExplorerPage'
+import { SimulationPage } from './pages/SimulationPage'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="farms" element={<FarmsPage />} />
           <Route path="rotation" element={<RotationExplorerPage />} />
+          <Route path="simulations" element={<SimulationPage />} />
           <Route path="farms/:farmId" element={<FarmDetailPage />} />
           <Route path="onboarding" element={<OnboardingPage />} />
         </Route>

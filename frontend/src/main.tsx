@@ -7,6 +7,7 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
 import './index.css'
 import './rotation.css'
+import './simulation.css'
 
 import App from './App.tsx'
 import { ApiError } from './api/types'
