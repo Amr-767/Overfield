@@ -75,6 +75,8 @@ INSTALLED_APPS = [
     "apps.agronomy.apps.AgronomyConfig",
     # Phase 4 — indicator services (pure calculations, no models).
     "apps.indicators.apps.IndicatorsConfig",
+    # Phase 6 — hypothetical, environment-only scenario simulation.
+    "apps.simulations.apps.SimulationsConfig",
 ]
 
 MIDDLEWARE = [
