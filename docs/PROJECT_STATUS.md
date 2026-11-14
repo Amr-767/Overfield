@@ -1,8 +1,8 @@
 # Overfield — Project Status
 
 **Last updated:** 2026-11-14
-**Current phase:** Phase 7 — farmer-facing React experience; setup complete on `phase/7-farmer-experience`, feature slice 7.1 next
-**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified in the Docker/PostGIS runtime. ✅ Phase 6 environment-only scenario simulation published to `overfield/phase/6-simulation` (342 backend tests, 66 frontend tests). 🚧 Phase 7 scoped but not yet implemented. Production rotation and crop-level simulation remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md), [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md) and [`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md).
+**Current phase:** Phase 8 — Strategy Commitment, Seasonal Check-Ins, Gamification & Reward Mockup
+**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified. ✅ Phase 6 environment-only scenario simulation published. ✅ Phase 7 farmer-facing Farm Environmental Dashboard complete and verified (84 frontend tests, 342 backend tests). 🚀 Phase 8 startup underway on `phase/8-gamification-rewards`. Production rotation and crop-level simulation remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md), [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md), [`PHASE_7_STATUS.md`](PHASE_7_STATUS.md) and [`PHASE_8_SLICE_PLAN.md`](PHASE_8_SLICE_PLAN.md).
 
 > **Phases 1–3 are complete and merged into `develop`.** Phase 1 delivered the Docker infrastructure,
 > Django/DRF foundation, React/Vite frontend and the Celery worker. Phase 2 delivered accounts, JWT, the

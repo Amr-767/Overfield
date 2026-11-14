@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css'
 import './index.css'
 import './rotation.css'
 import './simulation.css'
+import './environment.css'
 
 import App from './App.tsx'
 import { ApiError } from './api/types'

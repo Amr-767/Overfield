@@ -96,6 +96,12 @@ export function FarmDetailPage() {
         <span className={`precision-badge precision-${farm.spatial_precision.toLowerCase()}`}>
           {precisionLabel(farm.spatial_precision)}
         </span>
+        <Link
+          to={`/farms/${farm.id}/environment`}
+          className="button button-primary"
+        >
+          Environmental dashboard
+        </Link>
       </header>
 
       <div className="detail-grid">
