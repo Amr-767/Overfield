@@ -11,5 +11,6 @@ urlpatterns = [
     # farm sub-paths win during resolution.
     path("", include("apps.earth_data.urls")),
     path("", include("apps.indicators.urls")),
+    path("", include("apps.agronomy.urls")),
     path("", include("apps.farms.urls")),
 ]

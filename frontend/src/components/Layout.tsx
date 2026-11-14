@@ -30,6 +30,9 @@ export function Layout({ children, wide = false }: LayoutProps) {
                 <NavLink to="/farms" className="nav-link">
                   My farms
                 </NavLink>
+                <NavLink to="/rotation" className="nav-link">
+                  Rotation explorer
+                </NavLink>
                 <NavLink to="/onboarding" className="nav-link">
                   Add a farm
                 </NavLink>

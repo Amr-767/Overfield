@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "apps.farms.apps.FarmsConfig",
     # Phase 3 — provider adapters (models arrive in a later slice).
     "apps.earth_data.apps.EarthDataConfig",
+    "apps.agronomy.apps.AgronomyConfig",
     # Phase 4 — indicator services (pure calculations, no models).
     "apps.indicators.apps.IndicatorsConfig",
 ]
