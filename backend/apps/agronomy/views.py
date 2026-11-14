@@ -16,17 +16,19 @@ class CropListView(generics.ListAPIView):
         region = self.request.query_params.get("region_code")
         if not region:
             raise ValidationError({"region_code": ["This query parameter is required."]})
-        # A U.S.-specific source is shown as evidence in a profile but never
-        # presented as region-ready for Gharbia or any non-US code.
+        # Only reviewer-approved evidence is region-ready. A source may claim
+        # GENERAL/DIRECT applicability and a validation status, but those claims
+        # are never a substitute for the independent review decision.
         return Crop.objects.filter(
-            Q(characteristics__geographic_applicability__in=[
+            Q(characteristics__approved_geographic_applicability__in=[
                 GeographicApplicability.GENERAL,
                 GeographicApplicability.TRANSFERABLE_LIMITED,
             ])
             | Q(
-                characteristics__geographic_applicability=GeographicApplicability.DIRECT,
+                characteristics__approved_geographic_applicability=GeographicApplicability.DIRECT,
                 characteristics__geographic_scope__iexact=region,
             ),
+            characteristics__approval_status="APPROVED",
             characteristics__validation_status="VALID",
             characteristics__original_value__isnull=False,
             characteristics__dataset__status="APPROVED",

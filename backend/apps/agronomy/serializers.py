@@ -16,13 +16,14 @@ class CropListSerializer(serializers.ModelSerializer):
         region = self.context.get("request").query_params.get("region_code", "") if self.context.get("request") else ""
         return [
             trait for trait in obj.characteristics.all()
-            if trait.validation_status == "VALID"
+            if trait.approval_status == "APPROVED"
+            and trait.validation_status == "VALID"
             and trait.original_value is not None
             and trait.dataset.status == AgriculturalDataset.Status.APPROVED
             and trait.dataset_import.status == "SUCCEEDED"
             and (
-                trait.geographic_applicability in {GeographicApplicability.GENERAL, GeographicApplicability.TRANSFERABLE_LIMITED}
-                or (trait.geographic_applicability == GeographicApplicability.DIRECT and trait.geographic_scope.casefold() == region.casefold())
+                trait.approved_geographic_applicability in {GeographicApplicability.GENERAL, GeographicApplicability.TRANSFERABLE_LIMITED}
+                or (trait.approved_geographic_applicability == GeographicApplicability.DIRECT and trait.geographic_scope.casefold() == region.casefold())
             )
         ]
 
@@ -43,6 +44,8 @@ class CropCharacteristicSerializer(serializers.ModelSerializer):
             "value_type", "original_value", "original_unit", "normalized_value", "normalized_text",
             "normalized_boolean", "normalized_unit",
             "temporal_applicability", "geographic_scope", "geographic_applicability",
+            "source_geographic_applicability_claim", "approval_status",
+            "approved_geographic_applicability", "applicability_justification",
             "source_record_identifier", "source_record_url", "evidence_reference", "validation_status",
             "imported_at", "source",
         )

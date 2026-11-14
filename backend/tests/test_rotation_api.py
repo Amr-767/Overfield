@@ -40,6 +40,15 @@ class RotationApiTests(TestCase):
         self.assertEqual(response.data["status"], "INSUFFICIENT_EVIDENCE")
         self.assertEqual(response.data["options"], [])
         self.assertTrue(response.data["input_sha256"])
+        # Fail-closed is a contract, not a vague status: the response must name
+        # the missing evidence that blocks any recommendation.
+        missing = {item["name"] for item in response.data["missing"]}
+        self.assertIn("regional_crop_calendar", missing)
+        self.assertIn("eligible_crop_profiles", missing)
+        self.assertIn("crop_history", missing)
+        self.assertTrue(
+            any("No rotation is recommended" in limitation for limitation in response.data["data_limitations"])
+        )
         row = RotationRecommendation.objects.get(pk=response.data["recommendation_id"])
         self.assertEqual(row.input_sha256, response.data["input_sha256"])
         self.assertEqual(row.input_snapshot["planning_seasons"], 4)

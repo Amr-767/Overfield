@@ -214,16 +214,17 @@ def _eligible_profiles(region_code: str) -> list[dict[str, Any]]:
     rows = CropCharacteristic.objects.filter(
         dataset__status=AgriculturalDataset.Status.APPROVED,
         dataset_import__status="SUCCEEDED",
+        approval_status="APPROVED",
         validation_status=ValidationStatus.VALID,
     ).exclude(
         Q(original_value__isnull=True) | Q(original_value="")
     ).filter(
-        (Q(geographic_applicability__in=(GeographicApplicability.GENERAL, GeographicApplicability.TRANSFERABLE_LIMITED)))
-        | Q(geographic_applicability=GeographicApplicability.DIRECT, geographic_scope__iexact=region_code)
+        (Q(approved_geographic_applicability__in=(GeographicApplicability.GENERAL, GeographicApplicability.TRANSFERABLE_LIMITED)))
+        | Q(approved_geographic_applicability=GeographicApplicability.DIRECT, geographic_scope__iexact=region_code)
     ).select_related("crop", "dataset").order_by("crop__code", "characteristic_name", "id").distinct()
     profiles: dict[str, dict[str, Any]] = {}
     for trait in rows:
-        if trait.geographic_applicability == GeographicApplicability.DIRECT and trait.geographic_scope.casefold() != region_code.casefold():
+        if trait.approved_geographic_applicability == GeographicApplicability.DIRECT and trait.geographic_scope.casefold() != region_code.casefold():
             continue
         crop = profiles.setdefault(trait.crop.code, {
             "crop_code": trait.crop.code,

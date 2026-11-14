@@ -8,7 +8,15 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.agronomy.imports import DatasetValidationError, ImportMapping, import_rows
-from apps.agronomy.models import AgriculturalDataset, Crop, CropCharacteristic, DatasetImport, DatasetResource
+from apps.agronomy.models import (
+    AgriculturalDataset,
+    Crop,
+    CropCharacteristic,
+    DatasetImport,
+    DatasetResource,
+    ReviewRequest,
+)
+from apps.agronomy.reviews import review_evidence
 
 User = get_user_model()
 
@@ -149,6 +157,9 @@ class AgronomyApiTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="catalog-user", password="pass")
         self.other_user = User.objects.create_user(username="other-farmer", password="pass")
+        self.reviewer = User.objects.create_user(
+            username="catalog-reviewer", password="pass", is_staff=True
+        )
         self.client = APIClient()
         dataset = AgriculturalDataset.objects.create(
             identifier="test-catalog-fixture", title="Test fixture only", publisher="USDA test publisher",
@@ -159,6 +170,19 @@ class AgronomyApiTests(TestCase):
             trait="water_requirement", value="", unit="", normalized_unit="", record_id="fixture-missing"
         )], mapping=MAPPING)
         self.crop = Crop.objects.get()
+        # Imported values are source claims only; region readiness requires an
+        # explicit reviewer decision.
+        trait = CropCharacteristic.objects.get(characteristic_name="root_depth")
+        review_evidence(
+            reviewer=self.reviewer,
+            target_type=ReviewRequest.TargetType.CROP_TRAIT,
+            target_id=trait.pk,
+            decision=ReviewRequest.Decision.APPROVED,
+            rationale="Fixture review for contract testing.",
+            evidence_reference="fixture-review-evidence",
+            geographic_applicability="GENERAL",
+            applicability_justification="Fixture justification, not production evidence.",
+        )
 
     def test_list_requires_region_and_profile_contract_exposes_evidence_and_missing_traits(self):
         self.client.force_authenticate(self.user)
@@ -182,3 +206,87 @@ class AgronomyApiTests(TestCase):
         self.client.force_authenticate(self.other_user)
         # Crop research knowledge is shared, while existing farm endpoints remain owner-scoped.
         self.assertEqual(self.client.get("/api/v1/crops/?region_code=EG-GH").status_code, status.HTTP_200_OK)
+
+
+class ReviewGateTests(TestCase):
+    """A source claim is never a review decision; only approved evidence is region-ready."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="gate-user", password="pass")
+        self.reviewer = User.objects.create_user(
+            username="gate-reviewer", password="pass", is_staff=True
+        )
+        dataset = AgriculturalDataset.objects.create(
+            identifier="test-gate-fixture", title="Test fixture only",
+            publisher="USDA test publisher", version="v1",
+            landing_page_url="https://example.test/gate", license="CC0",
+            attribution="Fixture attribution", status=AgriculturalDataset.Status.APPROVED,
+        )
+        import_rows(dataset=dataset, rows=[fixture_row(applicability="GENERAL")], mapping=MAPPING)
+        self.trait = CropCharacteristic.objects.get()
+        self.crop = Crop.objects.get()
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def _list(self):
+        return self.client.get("/api/v1/crops/?region_code=EG-GH")
+
+    def _decide(self, decision: str):
+        return review_evidence(
+            reviewer=self.reviewer,
+            target_type=ReviewRequest.TargetType.CROP_TRAIT,
+            target_id=self.trait.pk,
+            decision=decision,
+            rationale="Fixture review for gate testing.",
+            evidence_reference="fixture-gate-evidence",
+            geographic_applicability="GENERAL" if decision == "APPROVED" else "",
+            applicability_justification="Fixture justification, not production evidence.",
+        )
+
+    def test_unreviewed_source_claim_is_not_region_ready(self):
+        response = self._list()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+
+        profile = self.client.get(f"/api/v1/crops/{self.crop.id}/profiles/").data
+        self.assertEqual(profile["source_status"], "NO_ELIGIBLE_EVIDENCE")
+        trait = profile["characteristics"][0]
+        self.assertEqual(trait["approval_status"], "PENDING")
+        self.assertEqual(trait["approved_geographic_applicability"], "UNKNOWN")
+        # The source's own claim is retained and visible, not silently promoted.
+        self.assertEqual(trait["geographic_applicability"], "GENERAL")
+        self.assertEqual(trait["source_geographic_applicability_claim"], "GENERAL")
+
+    def test_only_a_staff_reviewer_can_approve(self):
+        from django.core.exceptions import PermissionDenied
+
+        with self.assertRaises(PermissionDenied):
+            review_evidence(
+                reviewer=self.user,
+                target_type=ReviewRequest.TargetType.CROP_TRAIT,
+                target_id=self.trait.pk,
+                decision=ReviewRequest.Decision.APPROVED,
+                rationale="Self approval attempt.",
+                evidence_reference="fixture-gate-evidence",
+                geographic_applicability="GENERAL",
+                applicability_justification="Fixture justification.",
+            )
+
+    def test_approval_makes_the_claim_region_ready(self):
+        self._decide(ReviewRequest.Decision.APPROVED)
+        self.trait.refresh_from_db()
+
+        self.assertEqual(self.trait.approval_status, "APPROVED")
+        self.assertEqual(self.trait.approved_geographic_applicability, "GENERAL")
+
+        response = self._list()
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["source_status"], "VALID")
+
+    def test_rejection_keeps_the_crop_out_of_the_region_catalogue(self):
+        self._decide(ReviewRequest.Decision.REJECTED)
+        self.trait.refresh_from_db()
+
+        self.assertEqual(self.trait.approval_status, "REJECTED")
+        self.assertEqual(self.trait.approved_geographic_applicability, "UNKNOWN")
+        self.assertEqual(self._list().data["count"], 0)
