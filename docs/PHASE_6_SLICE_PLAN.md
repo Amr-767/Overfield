@@ -106,8 +106,8 @@ Phase 6 answers "what changes if the scenario changes?" — not "what will happe
 | Dependency | State |
 |---|---|
 | Approved Gharbia crop catalogue + season calendar | **Missing** — blocks meaningful crop-level comparisons |
-| Phase 5 review gate (`approval_status`) | Open gap (see `PHASE_5_STATUS.md` §4–§5) |
-| Phase 4 release-gate audit (`PHASE_4_RELEASE_AUDIT.md`) | Still owed a final verdict |
+| Phase 5 review gate (`approval_status`) | **Enforced** (see `PHASE_5_STATUS.md` §4) |
+| Phase 4 release-gate audit (`PHASE_4_RELEASE_AUDIT.md`) | Verdict recorded: CONDITIONAL (release activities outstanding) |
 | NASA POWER observations for the selected farm | Required for any environmental baseline |
 
 Until the calendar exists, Phase 6 may compute and display environment-only scenario

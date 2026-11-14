@@ -36,7 +36,7 @@ Run on 2026-11-14 against the Dockerized Django/PostGIS backend and the host Vit
 
 | Command | Result |
 |---|---|
-| `python manage.py test tests` | **321 tests OK** (0 failures, 0 errors) |
+| `python manage.py test tests` | **325 tests OK** (0 failures, 0 errors) |
 | `python manage.py check` | No issues |
 | `python manage.py makemigrations --check --dry-run` | No changes detected |
 | `npm test -- --run` (frontend) | **61 passed** across 8 files |
@@ -83,29 +83,40 @@ Rationale: the model already carries both the source-claimed value and the revie
 decision in separate fields. Recording the claim is not the same as approving it, and
 the provenance remains visible in the API response.
 
-### Known consequence (documented, not hidden)
+### Review gate (enforced)
 
-`apps/agronomy/recommendations.py::_eligible_profiles` currently gates on
-`validation_status == VALID` and geographic applicability, **not** on
-`approval_status == APPROVED`. Because a source may claim `VALID`, an unreviewed trait
-can reach candidate profiles. Closing this requires a product decision (and a test
-contract change) and is listed as a Phase 6 gate item — see §5.
+A source claim is **not** an approval. The importer records the source's
+`geographic_applicability` and `validation_status` claims on the effective fields so the
+evidence is visible, while `approval_status` stays `PENDING` and
+`approved_geographic_applicability` stays `UNKNOWN`.
+
+Region eligibility — the crop list, profile `source_status`/`evidence_ids`, and the
+rotation engine's `_eligible_profiles` — now requires all of:
+
+- `approval_status == APPROVED`,
+- `validation_status == VALID`,
+- `approved_geographic_applicability` in `GENERAL` / `TRANSFERABLE_LIMITED`, or `DIRECT`
+  with a matching region scope,
+- an approved dataset and a `SUCCEEDED` import.
+
+Only `apps/agronomy/reviews.py::review_evidence` (staff-only) can approve or reject a
+trait. Regression tests cover pending, non-staff approval, approved and rejected states in
+`tests/test_agronomy.py::ReviewGateTests`.
 
 ## 5. Limitations and required follow-up
 
 - **No approved production dataset or Gharbia calendar.** Recommendations remain
-  `INSUFFICIENT_EVIDENCE`; no crop trait is invented.
-- **Approval gating.** As above, the engine trusts a source's `VALID` claim. A future
-  slice should require `approval_status == APPROVED` (or an explicit per-dataset
-  waiver) before a trait is eligible.
+  `INSUFFICIENT_EVIDENCE`; no crop trait is invented. The API names
+  `regional_crop_calendar`, `eligible_crop_profiles` and `crop_history` as blocking
+  missing inputs, asserted in `tests/test_rotation_api.py`.
+- **Approval gating.** Enforced (see §4). A source's `VALID` claim alone is never enough.
 - **No scores, no ranking.** The engine reports evidence readiness only. Any numeric
   suitability score would need a validated methodology and is intentionally absent.
 - **No new datasets.** NLCD is U.S.-only and is not used for Gharbia; MODIS land cover
   is not integrated; no third-party crop database was added.
 - **Frontend coverage.** The rotation explorer is component-tested with mocked
   transport. A live browser end-to-end run against the Docker stack is not automated.
-- **Phase 4 release gate.** `docs/PHASE_4_RELEASE_AUDIT.md` is still owed a final
-  verdict (see `docs/PROJECT_STATUS.md`).
+- **Phase 4 release gate.** Verdict and evidence: [`PHASE_4_RELEASE_AUDIT.md`](PHASE_4_RELEASE_AUDIT.md).
 
 ## 6. Data-provenance statement
 

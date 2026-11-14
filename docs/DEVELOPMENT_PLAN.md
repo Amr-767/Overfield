@@ -214,6 +214,11 @@ decision (Risk R13) is still open and affects only interpretation/copy, not the 
 
 **Dependencies:** Phase 3 complete
 
+**Release-gate verdict (2026-11-14):** CONDITIONAL — all Phase 4 logic and data-integrity
+tests pass (325 backend tests); remaining items are release activities (live browser E2E,
+live NASA staging scan, bundle optimisation) and an expired-token test. Evidence:
+[`PHASE_4_RELEASE_AUDIT.md`](PHASE_4_RELEASE_AUDIT.md).
+
 ---
 
 ### Phase 5 — Crop Knowledge Base and Recommendation Engine
@@ -257,7 +262,7 @@ no objective ranking, yield, profit, or guaranteed soil benefit is claimed. Beca
 production regional calendar/crop evidence is still absent, live requests correctly
 return `INSUFFICIENT_EVIDENCE` with no unsupported alternative sequences.
 
-Verified in the Docker/PostGIS runtime on 2026-11-14: 321 backend tests OK,
+Verified in the Docker/PostGIS runtime on 2026-11-14: 325 backend tests OK,
 `manage.py check` clean, `makemigrations --check --dry-run` clean; 61 frontend tests OK,
 lint clean, production build succeeded. Published to the `overfield` remote on
 `phase/5-rotation-engine`. Evidence and known gaps: [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md).

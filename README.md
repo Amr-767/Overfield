@@ -28,10 +28,10 @@ therefore return `INSUFFICIENT_EVIDENCE` with no alternatives rather than a conf
 recommendation. The engine emits **no scores or ranking**, and flavour-specific
 benefits (yield, profit, soil outcomes) are never claimed.
 
-> **Review gate is not yet enforced by the engine.** A source may claim
-> `validation_status = VALID`; `approval_status` stays `PENDING` until a reviewer acts,
-> but candidate selection currently gates on the source claim. Closing this is a
-> Phase 6 gate item, tracked in [`docs/PHASE_5_STATUS.md`](docs/PHASE_5_STATUS.md).
+> **Review gate:** imported source claims are never trusted on their own. Only a
+> staff-approved trait (`approval_status = APPROVED` with reviewer-decided geographic
+> applicability) can appear in the region catalogue or reach the rotation engine's
+> candidate profiles. See [`docs/PHASE_5_STATUS.md`](docs/PHASE_5_STATUS.md) §4.
 
 ```powershell
 # JWT required; farm endpoints are owner-scoped

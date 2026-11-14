@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-11-14
 **Current phase:** Phase 5.3 — Crop rotation evidence engine (published); Phase 6 setup prepared
-**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified in the Docker/PostGIS runtime (321 backend tests, 61 frontend tests). Production rotation options remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md).
+**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified in the Docker/PostGIS runtime (325 backend tests, 61 frontend tests). Production rotation options remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md).
 
 > **Phases 1–3 are complete and merged into `develop`.** Phase 1 delivered the Docker infrastructure,
 > Django/DRF foundation, React/Vite frontend and the Celery worker. Phase 2 delivered accounts, JWT, the
@@ -27,7 +27,7 @@
 | `.gitignore` | Present; `.env` and `.venv/` ignored |
 | `.env.example` | Present with Postgres/Redis/Django placeholders; local `.env` is ignored |
 | Dependencies | Backend pinned in `backend/requirements.txt` (Celery + redis included); frontend pinned in `frontend/package.json` + `package-lock.json`; virtualenv and `node_modules` are local-only |
-| Tests | Backend: **321 Django tests** passing. Frontend: **61 Vitest tests** passing |
+| Tests | Backend: **325 Django tests** passing. Frontend: **61 Vitest tests** passing |
 | Frontend deps | `react-router-dom`, `@tanstack/react-query`, `leaflet`, `react-leaflet`, `@geoman-io/leaflet-geoman-free`; test-only `jsdom`, `@testing-library/react`, `@testing-library/user-event` |
 | Database | Docker Compose `postgis/postgis:17-3.5` (PostgreSQL 17.5, PostGIS 3.5.2); Django uses `django.contrib.gis.db.backends.postgis` |
 | Backend runtime | Docker image `python:3.14-slim` (Debian 13) with GDAL 3.10.3, GEOS 3.13.1, PROJ 9.6.0; `backend/Dockerfile` + `backend/.dockerignore`; the host venv is editor-only |
@@ -46,6 +46,7 @@
 - [`HACKATHON_DATA_SOURCE_MATRIX.md`](HACKATHON_DATA_SOURCE_MATRIX.md)
 - [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md)
 - [`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md)
+- [`PHASE_4_RELEASE_AUDIT.md`](PHASE_4_RELEASE_AUDIT.md)
 - [`RISK_REGISTER.md`](RISK_REGISTER.md)
 - [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md)
 
@@ -975,11 +976,11 @@ soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `n
 - Added migration `0004_sync_phase5_models` to align the Phase 5 models with the migrations.
   It is additive and no historical migration was edited.
 - Verification (2026-11-14, Docker/PostGIS runtime): `python manage.py test tests` →
-  **321 tests OK**; `manage.py check` clean; `makemigrations --check --dry-run` → no changes.
+  **325 tests OK**; `manage.py check` clean; `makemigrations --check --dry-run` → no changes.
   Frontend: **61 tests OK**, `oxlint` clean, production build succeeded.
-- Known gap: candidate selection gates on the source's `validation_status` claim; the
-  independent `approval_status` review decision is not yet enforced. See
-  [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md) §4–§5.
+- Known gap closed: candidate selection now requires `approval_status = APPROVED` and
+  reviewer-decided geographic applicability; a source's `VALID` claim alone is never
+  region-ready. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md) §4.
 
 ## Open Decisions and Dependencies
 
@@ -1023,13 +1024,15 @@ soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `n
 
 ## Next recommended task
 
-1. **Complete the Phase 4 release gate.** `docs/PHASE_4_RELEASE_AUDIT.md` still needs its
-   executive summary, traceability matrix and final verdict before any Phase 4 claim is
-   treated as approved.
+1. **Complete the release activities in the Phase 4 audit.** The verdict is
+   **CONDITIONAL**: `docs/PHASE_4_RELEASE_AUDIT.md` records the evidence and the three
+   remaining release activities (live browser E2E, live NASA staging scan, bundle
+   optimisation) plus the expired-token test gap.
 2. **Source and review the Gharbia crop catalogue and calendar** (Risk R6/R13). No crop trait
    or season window may be entered without a named, approved dataset and reviewer.
 3. **Phase 6 — Scenario Simulation and Strategy Comparison.** Scenarios must be explicit,
    bounded and reproducible; hypothetical adjustments must never be labelled as NASA
    forecast. See `DEVELOPMENT_PLAN.md` and the branch `phase/6-simulation`.
-4. **Close the Phase 5 review gap.** Gate candidate traits on `approval_status = APPROVED`
-   (or an explicit per-dataset waiver) instead of the source's `validation_status` claim.
+4. **Keep production rotation fail-closed.** Until reviewed crop evidence exists, the API
+   must keep returning `INSUFFICIENT_EVIDENCE` with named missing inputs; this is asserted
+   by tests, not a placeholder.

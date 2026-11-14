@@ -896,19 +896,21 @@ Contract deferred; not part of MVP.
 Implemented in Phase 5.1/5.2. Authentication is required. `region_code` is required;
 an omitted value returns `400` (the catalogue is never implicitly unscoped).
 Returns `{count, next, previous, results}` where each result has `id`, `code`, `name`,
-`scientific_name`, `crop_family`, `source_status`, and `evidence_ids`. Only traits
-classified `DIRECT`, `GENERAL`, or `TRANSFERABLE_LIMITED` can make a crop available
-for a region; `US_SPECIFIC` evidence is deliberately excluded from the region-ready
-list. Current production result: empty, because no individual agricultural dataset is
-approved for import.
+`scientific_name`, `crop_family`, `source_status`, and `evidence_ids`. A crop is region-ready
+only when it has reviewer-approved traits (`approval_status = APPROVED`,
+`validation_status = VALID`) whose **reviewer-decided** applicability is `DIRECT`,
+`GENERAL`, or `TRANSFERABLE_LIMITED`; `US_SPECIFIC` evidence and unreviewed source claims are
+deliberately excluded. Current production result: empty, because no individual agricultural
+dataset is approved for import and no trait has passed review.
 
 ### GET `/api/v1/crops/{crop_id}/profiles/` — P0
 Implemented in Phase 5.1/5.2. Returns the list fields plus `characteristics` and
 `missing_characteristics`. Every characteristic preserves raw/normalized value and
 units (null stays null), cultivar/variety, temporal and geographic applicability,
-validation status, source record ID/URL and evidence reference. `source` contains
-dataset identifier, publisher, version, DOI, licence, attribution and official landing
-page URL. Internal source-file paths and import errors are never exposed.
+the source's applicability claim, `approval_status`, `approved_geographic_applicability`,
+`applicability_justification`, validation status, source record ID/URL and evidence reference.
+`source` contains dataset identifier, publisher, version, DOI, licence, attribution and
+official landing page URL. Internal source-file paths and import errors are never exposed.
 
 ### GET `/api/v1/regions/{region_code}/crop-calendar/` — P0 — implemented
 Returns only an approved `RegionAgronomyProfile`, including calendar version, source references, season dates, crop associations and evidence identifiers. An unknown or unapproved calendar returns `404`. No Gharbia calendar is currently approved, so `/EG-GH/crop-calendar/` returns `404` until reviewed evidence is entered.
