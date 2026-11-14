@@ -1,8 +1,8 @@
 # Overfield — Project Status
 
 **Last updated:** 2026-11-14
-**Current phase:** Phase 6 — environment-only scenario simulation published to `overfield/phase/6-simulation`; Phase 7 ready to start
-**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified in the Docker/PostGIS runtime. ✅ Phase 6 environment-only scenario simulation implemented and verified (342 backend tests, 66 frontend tests). Production rotation and crop-level simulation remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md) and [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
+**Current phase:** Phase 7 — farmer-facing React experience; setup complete on `phase/7-farmer-experience`, feature slice 7.1 next
+**Phase status:** ✅ Phase 4A–4F complete. ✅ Phase 5.1/5.2 catalogue and Phase 5.3 fail-closed rotation assessment verified in the Docker/PostGIS runtime. ✅ Phase 6 environment-only scenario simulation published to `overfield/phase/6-simulation` (342 backend tests, 66 frontend tests). 🚧 Phase 7 scoped but not yet implemented. Production rotation and crop-level simulation remain unavailable until approved regional crop evidence/calendar exists. See [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md), [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md) and [`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md).
 
 > **Phases 1–3 are complete and merged into `develop`.** Phase 1 delivered the Docker infrastructure,
 > Django/DRF foundation, React/Vite frontend and the Celery worker. Phase 2 delivered accounts, JWT, the
@@ -18,8 +18,8 @@
 | Item | Actual status |
 |---|---|
 | Repository | Git repository initialized; Phase 5 branch is `phase/5-rotation-engine` |
-| Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management`, `phase/3-nasa-integration`, `phase/4-environmental-engine`, `phase/5-rotation-engine`, `phase/6-simulation` |
-| Remote | `origin` → `https://github.com/Amr-767/nasa.git` (Phase 4 baseline); `overfield` → `https://github.com/Amr-767/Overfield.git` (rebranded Overfield repository, receives Phase 5 and Phase 6 branches) |
+| Local branches | `main`, `develop`, `phase/0-documentation-review`, `phase/1-foundation`, `phase/2-farm-management`, `phase/3-nasa-integration`, `phase/4-environmental-engine`, `phase/5-rotation-engine`, `phase/6-simulation`, `phase/7-farmer-experience` |
+| Remote | `origin` → `https://github.com/Amr-767/nasa.git` (Phase 4 baseline); `overfield` → `https://github.com/Amr-767/Overfield.git` (rebranded Overfield repository, receives Phase 5, Phase 6 and Phase 7 branches) |
 | Backend (`backend/`) | Django 6.0.10 + GeoDjango (`django.contrib.gis`) with the PostGIS backend; `config/` split settings, DRF + SimpleJWT, CORS, `apps.core` (health, `core.ping`), `apps.accounts` (profile/auth), `apps.farms` (farms/zones/context), `apps.earth_data` (POWER provider, models, Celery ingestion, REST API), `apps.agronomy` (source-specific agricultural dataset registry, audit imports, crop traits, read APIs), `apps.indicators` (WATER/HEAT/SOIL/MARKET + summary API), `apps.simulations` (environment-only scenario simulation), `domain_services` (geometry). Runs in the `backend` Compose service (ADR-018) |
 | Frontend (`frontend/`) | React 19 + TypeScript + Vite + React Router 7 + TanStack Query 5 + Leaflet 1.9/Leaflet-Geoman: auth screens, 5-step onboarding wizard, farm list/detail, rotation explorer, scenario lab, env-driven API client with JWT handling. No environmental-indicator dashboard yet |
 | Documentation (`docs/`) | Master Handoff, Phased Coding Playbook, Phase 0 docs, Git workflow, review, risk register, environmental-indicator methodology and the NASA data-source matrix present |
@@ -47,6 +47,7 @@
 - [`PHASE_5_STATUS.md`](PHASE_5_STATUS.md)
 - [`PHASE_6_SLICE_PLAN.md`](PHASE_6_SLICE_PLAN.md)
 - [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md)
+- [`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md)
 - [`PHASE_4_RELEASE_AUDIT.md`](PHASE_4_RELEASE_AUDIT.md)
 - [`RISK_REGISTER.md`](RISK_REGISTER.md)
 - [`GIT_WORKFLOW.md`](GIT_WORKFLOW.md)
@@ -1017,8 +1018,10 @@ soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `n
 - `phase/4-environmental-engine` created from the merged `develop` and published.
 - Phase 5 (`crop-intelligence-rotation-engine`) committed and published to the `overfield`
   remote as `phase/5-rotation-engine`; `origin` remains at the Phase 4 baseline by design.
-- `phase/6-simulation` created from the Phase 5 tip with a Phase 6 slice plan; no Phase 6
-  feature code is included.
+- `phase/6-simulation` created from the Phase 5 tip and published to `overfield` as `7c675b8`
+  (backend, frontend and docs commits). `origin` remains at the Phase 4 baseline by design.
+- `phase/7-farmer-experience` created from the published Phase 6 tip `7c675b8` with a
+  setup-only slice plan; no Phase 7 feature code is included yet.
 - `main` is still at the Phase 0 baseline (`d59156b`). Promote `develop` → `main` once the team approves
   Phases 1–3 (optionally tagged `phase-3-approved`); nothing is forced or rewritten.
 - No milestone tags created yet.
@@ -1035,6 +1038,9 @@ soil module **19 tests OK** · frontend **53 tests OK** · `npm run lint` and `n
    `overfield/phase/6-simulation`. Bounded, reproducible, labelled `HYPOTHETICAL`; crop-level
    comparison stays refused until the catalogue/calendar exists. See
    [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
-4. **Keep production rotation fail-closed.** Until reviewed crop evidence exists, the API
+4. **Start Phase 7 slice 7.1** on `phase/7-farmer-experience`: add `src/api/environment.ts`
+   and the scan trigger/polling UI with loading, success, partial and failure tests. See
+   [`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md).
+5. **Keep production rotation fail-closed.** Until reviewed crop evidence exists, the API
    must keep returning `INSUFFICIENT_EVIDENCE` with named missing inputs; this is asserted
    by tests, not a placeholder.

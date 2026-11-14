@@ -303,6 +303,19 @@ tests, lint and build clean. Evidence: [`PHASE_6_STATUS.md`](PHASE_6_STATUS.md).
 
 ---
 
+#### Phase 7.0 — branch and slice plan (setup complete 2026-11-14)
+
+`phase/7-farmer-experience` was created from the published Phase 6 tip `7c675b8` with
+[`PHASE_7_SLICE_PLAN.md`](PHASE_7_SLICE_PLAN.md). No Phase 7 feature code exists yet.
+
+**Scope confirmed at setup:** the backend endpoints for scans, job status, daily
+observations, the four-indicator summary, rotation and simulation already exist and are
+tested. Phase 7 is a frontend integration phase: add `src/api/environment.ts`, the scan
+trigger/polling flow, the honest environmental dashboard, farm-overview journey links and a
+responsive/accessibility pass. No new datasets, scores, crop claims or contract changes.
+
+---
+
 ### Phase 7 — Farmer-Facing React Experience and Dashboard
 **Model:** Flash for most UI, Opus for complex state | **Code changes:** React screens, components, API integration
 
